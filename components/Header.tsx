@@ -18,7 +18,7 @@ const NavButton: React.FC<{
     return (
         <button
             onClick={onClick}
-            className={`px-3 py-2 font-medium text-sm rounded-md transition-colors duration-200 ${isActive ? activeClasses : inactiveClasses}`}
+            className={`flex-1 px-1 py-2.5 font-medium text-xs sm:text-sm text-center rounded-none md:rounded-md md:flex-none md:px-3 transition-colors duration-200 ${isActive ? activeClasses : inactiveClasses}`}
         >
             {children}
         </button>
@@ -37,7 +37,8 @@ const Header: React.FC<HeaderProps> = ({ onNew, activePage, onPageChange }) => {
                         </h1>
                         <nav className="hidden md:flex items-center space-x-1 p-1 bg-slate-100 dark:bg-slate-900 rounded-lg">
                            <NavButton isActive={activePage === 'introduction'} onClick={() => onPageChange('introduction')}>Introduction</NavButton>
-                           <NavButton isActive={activePage === 'body'} onClick={() => onPageChange('body')}>Body</NavButton>
+                           <NavButton isActive={activePage === 'body'} onClick={() => onPageChange('body')}>Body 1</NavButton>
+                           <NavButton isActive={activePage === 'body2'} onClick={() => onPageChange('body2')}>Body 2</NavButton>
                            <NavButton isActive={activePage === 'counterArgument'} onClick={() => onPageChange('counterArgument')}>Counter-Argument</NavButton>
                            <NavButton isActive={activePage === 'conclusion'} onClick={() => onPageChange('conclusion')}>Conclusion</NavButton>
                         </nav>
@@ -46,13 +47,14 @@ const Header: React.FC<HeaderProps> = ({ onNew, activePage, onPageChange }) => {
                         <Button variant="secondary" onClick={onNew}>New</Button>
                     </div>
                 </div>
-                 <nav className="md:hidden flex items-center space-x-1 p-1 bg-slate-100 dark:bg-slate-900 rounded-lg mb-2">
-                    <NavButton isActive={activePage === 'introduction'} onClick={() => onPageChange('introduction')}>Introduction</NavButton>
-                    <NavButton isActive={activePage === 'body'} onClick={() => onPageChange('body')}>Body</NavButton>
-                    <NavButton isActive={activePage === 'counterArgument'} onClick={() => onPageChange('counterArgument')}>Counter-Argument</NavButton>
-                    <NavButton isActive={activePage === 'conclusion'} onClick={() => onPageChange('conclusion')}>Conclusion</NavButton>
-                </nav>
             </div>
+            <nav className="md:hidden flex items-center bg-slate-100 dark:bg-slate-900 border-t border-slate-200 dark:border-slate-700">
+                <NavButton isActive={activePage === 'introduction'} onClick={() => onPageChange('introduction')}>Intro</NavButton>
+                <NavButton isActive={activePage === 'body'} onClick={() => onPageChange('body')}>Body 1</NavButton>
+                <NavButton isActive={activePage === 'body2'} onClick={() => onPageChange('body2')}>Body 2</NavButton>
+                <NavButton isActive={activePage === 'counterArgument'} onClick={() => onPageChange('counterArgument')}>Counter</NavButton>
+                <NavButton isActive={activePage === 'conclusion'} onClick={() => onPageChange('conclusion')}>Conclusion</NavButton>
+            </nav>
         </header>
     );
 };

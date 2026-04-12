@@ -1,4 +1,4 @@
-export type PageType = 'introduction' | 'body' | 'counterArgument' | 'conclusion';
+export type PageType = 'introduction' | 'body' | 'body2' | 'counterArgument' | 'conclusion';
 
 export type Stance = "pro" | "con" | "neutral";
 

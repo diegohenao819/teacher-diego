@@ -31,6 +31,7 @@ import {
 // --- Local Storage Keys ---
 const INTRODUCTION_STORAGE_KEY = "teacherDiego_introductionInputs";
 const BODY_STORAGE_KEY = "teacherDiego_bodyInputs";
+const BODY2_STORAGE_KEY = "teacherDiego_body2Inputs";
 const COUNTER_ARGUMENT_STORAGE_KEY = "teacherDiego_counterArgumentInputs";
 const CONCLUSION_STORAGE_KEY = "teacherDiego_conclusionInputs";
 
@@ -108,6 +109,39 @@ const PAGE_CONFIGS: Record<
         label: "4. Conclusion",
         placeholder:
           "Summarize and restate your claim in a new way. e.g., 'Therefore, offering remote options is a key strategy for improving business output.'",
+        rows: 3,
+      },
+    ],
+    fieldOrder: ["claim", "evidence", "warrant", "conclusion"],
+  },
+  body2: {
+    fields: [
+      {
+        field: "claim",
+        label: "1. Claim",
+        placeholder:
+          "State your second main argument. e.g., 'A shorter work week also helps companies attract top talent.'",
+        rows: 3,
+      },
+      {
+        field: "evidence",
+        label: "2. Evidence",
+        placeholder:
+          "Provide a specific fact, example, or reason. e.g., 'A Gallup poll found that 54% of workers would switch jobs for one that offers a four-day week.'",
+        rows: 5,
+      },
+      {
+        field: "warrant",
+        label: "3. Warrant",
+        placeholder:
+          "Explain how your evidence proves your claim. e.g., 'This willingness to change jobs shows that flexible schedules are a powerful recruitment tool.'",
+        rows: 5,
+      },
+      {
+        field: "conclusion",
+        label: "4. Conclusion",
+        placeholder:
+          "Summarize and restate your claim in a new way. e.g., 'Thus, offering a four-day week gives companies a clear edge in the competition for skilled employees.'",
         rows: 3,
       },
     ],
@@ -199,6 +233,12 @@ const initialBodyState: PageState<BodyParagraphInput> = {
   coherence: { status: "idle" },
 };
 
+const initialBody2State: PageState<BodyParagraphInput> = {
+  inputs: EMPTY_BODY_INPUT,
+  feedback: null,
+  coherence: { status: "idle" },
+};
+
 const initialCounterArgumentState: PageState<CounterArgumentParagraphInput> = {
   inputs: EMPTY_COUNTER_ARGUMENT_INPUT,
   feedback: null,
@@ -261,6 +301,29 @@ function App() {
       }
     }
     return initialBodyState;
+  });
+
+  const [body2State, setBody2State] = useState(() => {
+    const saved = localStorage.getItem(BODY2_STORAGE_KEY);
+    if (saved) {
+      try {
+        const parsedInputs = JSON.parse(saved);
+        if (
+          typeof parsedInputs === "object" &&
+          parsedInputs !== null &&
+          "claim" in parsedInputs
+        ) {
+          return {
+            ...initialBody2State,
+            inputs: { ...EMPTY_BODY_INPUT, ...parsedInputs },
+          };
+        }
+      } catch (e) {
+        console.error("Failed to parse body 2 inputs from localStorage", e);
+        localStorage.removeItem(BODY2_STORAGE_KEY);
+      }
+    }
+    return initialBody2State;
   });
 
   const [counterArgumentState, setCounterArgumentState] = useState(() => {
@@ -330,6 +393,12 @@ function App() {
         emptyState: initialBodyState,
         storageKey: BODY_STORAGE_KEY,
       },
+      body2: {
+        state: body2State,
+        setter: setBody2State,
+        emptyState: initialBody2State,
+        storageKey: BODY2_STORAGE_KEY,
+      },
       counterArgument: {
         state: counterArgumentState,
         setter: setCounterArgumentState,
@@ -343,7 +412,7 @@ function App() {
         storageKey: CONCLUSION_STORAGE_KEY,
       },
     }),
-    [introductionState, bodyState, counterArgumentState, conclusionState],
+    [introductionState, bodyState, body2State, counterArgumentState, conclusionState],
   );
 
   const { state: activeState, setter: activeSetter } = pageStates[activePage];
@@ -358,6 +427,10 @@ function App() {
   useEffect(() => {
     localStorage.setItem(BODY_STORAGE_KEY, JSON.stringify(bodyState.inputs));
   }, [bodyState.inputs]);
+
+  useEffect(() => {
+    localStorage.setItem(BODY2_STORAGE_KEY, JSON.stringify(body2State.inputs));
+  }, [body2State.inputs]);
 
   useEffect(() => {
     localStorage.setItem(
@@ -542,7 +615,9 @@ function App() {
             coherence={activeState.coherence}
             config={PAGE_CONFIGS[activePage].fields}
             showThesisContext={
-              activePage === "body" || activePage === "counterArgument"
+              activePage === "body" ||
+              activePage === "body2" ||
+              activePage === "counterArgument"
             }
           />
           <FeedbackPanel
