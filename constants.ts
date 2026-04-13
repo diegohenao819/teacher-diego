@@ -7,18 +7,18 @@ export const WORD_LIMITS: Record<InputField, { min: number; max: number }> = {
   thesis: { min: 15, max: 80 },
   transition: { min: 5, max: 80 },
   // Body Paragraph
-  thesisContext: { min: 15, max: 40 },
-  claim: { min: 10, max: 35 },
-  evidence: { min: 20, max: 80 },
-  warrant: { min: 20, max: 80 },
-  conclusion: { min: 10, max: 40 },
+  thesisContext: { min: 15, max: 80 },
+  claim: { min: 10, max: 90 },
+  evidence: { min: 20, max: 100 },
+  warrant: { min: 20, max: 200 },
+  conclusion: { min: 10, max: 80 },
   // Counter-Argument Paragraph
-  counterArgument: { min: 10, max: 35 },
-  rebuttal: { min: 10, max: 60 },
+  counterArgument: { min: 10, max: 55 },
+  rebuttal: { min: 10, max: 90 },
   // Conclusion Paragraph
-  restatement: { min: 15, max: 40 },
-  summary: { min: 30, max: 80 },
-  callToAction: { min: 15, max: 40 },
+  restatement: { min: 15, max: 80 },
+  summary: { min: 30, max: 100 },
+  callToAction: { min: 15, max: 80 },
 };
 
 export const BANNED_PHRASES_REGEX = /\b(this essay (will|shows?)|in the following paragraphs|I think that|in my opinion)\b/i;
