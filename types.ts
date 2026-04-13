@@ -46,7 +46,7 @@ export interface Settings {
     topicTag?: string;
 }
 
-export type IntroductionRubricCriterion = "Hook Effectiveness" | "Background Clarity" | "Thesis Precision & Two-Reason Structure" | "Transition Quality & Flow Signaling" | "Language Control";
+export type IntroductionRubricCriterion = "Hook Effectiveness" | "Background Clarity" | "Thesis Precision & Two-Reason Structure" | "Transition Quality & First Argument Introduction" | "Language Control";
 export type BodyRubricCriterion = "Clarity of Claim" | "Logical Link (Evidence→Warrant)" | "Coherence & Flow" | "Evidence Quality" | "Language Control";
 export type CounterArgumentRubricCriterion = "Clarity of Counter-Argument" | "Strength of Rebuttal" | "Evidence Quality" | "Rebuttal→Warrant Link" | "Language Control";
 export type ConclusionRubricCriterion = "Thesis Restatement" | "Synthesis of Arguments + Counter-Argument/Rebuttal" | "Closing Move (Call to Action/Reflection impact)" | "Language Control";

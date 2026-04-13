@@ -108,8 +108,8 @@ function buildIntroductionSystemPrompt(): string {
 - The Thesis must have a clear stance and **exactly two** distinct supporting reasons (Argument A and Argument B). Also, is the thesis debatable? (A thesis should not be obvious, for instance "We should respect human rights" or "Kids should study" are very obvious thesis statement)
 - The Hook should be engaging and relevant.
 - The Background must provide neutral context.
-- The Transition should smoothly lead into the body paragraphs, signaling the order of arguments.
-- Score the paragraph on a 0-5 scale for each criterion: Hook Effectiveness, Background Clarity, Thesis Precision & Two-Reason Structure, Transition Quality & Flow Signaling, Language Control.
+- The Transition should smoothly lead into the first body paragraph, introducing only the first argument (Argument A).
+- Score the paragraph on a 0-5 scale for each criterion: Hook Effectiveness, Background Clarity, Thesis Precision & Two-Reason Structure, Transition Quality & First Argument Introduction, Language Control.
 - Provide a detailed grammar analysis table.
 - Never add new content that changes the student's argument; only improve clarity, logic, and grammar.
 - Output STRICTLY valid JSON matching this schema:
@@ -138,11 +138,11 @@ Rubric criteria:
 1) Hook Effectiveness
 2) Background Clarity
 3) Thesis Precision & Two-Reason Structure
-4) Transition Quality & Flow Signaling
+4) Transition Quality & First Argument Introduction
 5) Language Control
 
 Return fields: rubric[], suggestions[], inlineEdits{hook,background,thesis,transition}, rewrittenParagraph, warnings[], grammarAnalysis[].
-The rewritten paragraph must be a single, cohesive paragraph combining the parts in order, preserving the student's core ideas and two arguments.`;
+The rewritten paragraph must be a single, cohesive paragraph combining the parts in order, preserving the student's core ideas. The transition should only introduce the first argument.`;
 }
 
 function buildIntroductionCoherencePrompt(
@@ -152,7 +152,7 @@ function buildIntroductionCoherencePrompt(
 1. Does the Hook relate to the Thesis?
 2. Does the Background provide brief, neutral context for the Thesis?
 3. Does the Thesis contain a clear stance and exactly two distinct arguments (A & B)? Also, is the thesis debatable?
-4. Does the Transition logically follow the Thesis and signal the order of arguments?
+4. Does the Transition logically follow the Thesis and introduce only the first argument (Argument A)?
 
 Hook: "${data.hook}"
 Background: "${data.background}"

@@ -49,7 +49,7 @@ function buildIntroductionCoherencePrompt(data: IntroductionParagraphInput): str
 1. Does the Hook relate to the Thesis?
 2. Does the Background provide brief, neutral context for the Thesis?
 3. Does the Thesis contain a clear stance and exactly two distinct arguments (A & B)? Also, is the thesis debatable?
-4. Does the Transition logically follow the Thesis and signal the order of arguments?
+4. Does the Transition logically follow the Thesis and introduce only the first argument (Argument A)?
 
 Hook: "${data.hook}"
 Background: "${data.background}"
