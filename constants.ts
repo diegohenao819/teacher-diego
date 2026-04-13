@@ -2,10 +2,10 @@ import { BodyParagraphInput, CounterArgumentParagraphInput, Settings, FeedbackRe
 
 export const WORD_LIMITS: Record<InputField, { min: number; max: number }> = {
   // Introduction
-  hook: { min: 10, max: 40 },
-  background: { min: 20, max: 100 },
-  thesis: { min: 15, max: 40 },
-  transition: { min: 5, max: 20 },
+  hook: { min: 10, max: 100 },
+  background: { min: 20, max: 120 },
+  thesis: { min: 15, max: 80 },
+  transition: { min: 5, max: 80 },
   // Body Paragraph
   thesisContext: { min: 15, max: 40 },
   claim: { min: 10, max: 35 },
