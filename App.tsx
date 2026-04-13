@@ -539,16 +539,13 @@ function App() {
   }, [activeState.inputs, isSyntaxValidForParagraphCheck, activeSetter]);
 
   const isFormValid = useMemo(() => {
-    return (
-      isSyntaxValidForParagraphCheck &&
-      activeState.coherence.status === "success"
-    );
-  }, [isSyntaxValidForParagraphCheck, activeState.coherence.status]);
+    return isSyntaxValidForParagraphCheck;
+  }, [isSyntaxValidForParagraphCheck]);
 
   const handleGetFeedback = async () => {
     if (!isFormValid) {
       setError(
-        "Please fix the validation and coherence errors before submitting.",
+        "Please fix the validation errors before submitting.",
       );
       return;
     }
