@@ -1,7 +1,9 @@
 {
   "permissions": {
     "allow": [
-      "WebSearch"
+      "WebSearch",
+      "Bash(grep -r \"api/coherence\\\\|api/feedback\" /c/git/teacher-diego --include=\"*.ts\" --include=\"*.tsx\" ! -path \"*/node_modules/*\" -n)",
+      "Bash(npm install:*)"
     ]
   }
 }
