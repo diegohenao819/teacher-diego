@@ -101,6 +101,22 @@ function isConclusionParagraph(
 // (since we rely on response_format: json_object)
 // ─────────────────────────────────────────────
 
+const GRADING_CALIBRATION = `
+GRADING CALIBRATION FOR B2-LEVEL ARGUMENTATIVE WRITING:
+You are evaluating B2-level student writing, not publishable academic prose. Apply these rules:
+
+1. Only flag genuine errors. A genuine error violates a grammar rule, obscures meaning, or would be marked wrong by a standard style guide (APA, Chicago, MLA). Do NOT flag:
+   - Stylistic preferences (nominalizations vs. gerunds, "capacity" vs. "ability", active vs. passive voice when both are correct)
+   - Word choice alternatives when the original word is accurate
+   - Sentence structures that are formal but grammatically sound
+   - Constructions common in academic writing (appositives, relative clauses with "that/which/where", noun phrases with "its/their")
+
+2. Verify before correcting. Before flagging an error, parse the sentence structure. If the "error" requires rewriting a grammatically valid sentence, it is a preference, not an error. Do not invent fragments, missing objects, or agreement errors that are not actually present.
+
+3. Score realistically. A 5.0 means the text meets B2 expectations with no genuine errors. It does NOT require native-level polish or publication-ready prose. If a student produces clean, clear, grammatically correct B2 writing that fulfills the task, award 5.0. Reserve deductions for real issues: grammar errors, unclear meaning, task non-completion, or weak argumentation.
+
+4. When uncertain, favor the student. If a construction could be argued either way, treat it as correct.`;
+
 // --- Introduction ---
 
 function buildIntroductionSystemPrompt(): string {
@@ -120,7 +136,9 @@ function buildIntroductionSystemPrompt(): string {
   "rewrittenParagraph": string,
   "warnings": [string],
   "grammarAnalysis": [{ "error": string, "correction": string, "explanation": string }]
-}`;
+}
+
+${GRADING_CALIBRATION}`;
 }
 
 function buildIntroductionUserPrompt(
@@ -180,7 +198,9 @@ Your job: evaluate a Claim–Evidence–Warrant–Conclusion paragraph, score it
   "rewrittenParagraph": string,
   "warnings": [string],
   "grammarAnalysis": [{ "error": string, "correction": string, "explanation": string }]
-}`;
+}
+
+${GRADING_CALIBRATION}`;
 }
 
 function buildBodyUserPrompt(data: BodyParagraphInput & Settings): string {
@@ -239,7 +259,9 @@ Your job: evaluate a Counter-Argument paragraph (Counter-Argument -> Rebuttal ->
   "rewrittenParagraph": string,
   "warnings": [string],
   "grammarAnalysis": [{ "error": string, "correction": string, "explanation": string }]
-}`;
+}
+
+${GRADING_CALIBRATION}`;
 }
 
 function buildCounterArgumentUserPrompt(
@@ -303,7 +325,9 @@ function buildConclusionSystemPrompt(): string {
   "rewrittenParagraph": string,
   "warnings": [string],
   "grammarAnalysis": [{ "error": string, "correction": string, "explanation": string }]
-}`;
+}
+
+${GRADING_CALIBRATION}`;
 }
 
 function buildConclusionUserPrompt(
