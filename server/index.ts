@@ -66,9 +66,13 @@ async function chatCompletion(
   // Log cache stats
   const details = data.usage?.prompt_tokens_details;
   if (details?.cached_tokens) {
-    console.log(`  Cache HIT: ${details.cached_tokens} cached / ${data.usage.prompt_tokens} total input tokens`);
+    console.log(
+      `  Cache HIT: ${details.cached_tokens} cached / ${data.usage.prompt_tokens} total input tokens`,
+    );
   } else {
-    console.log(`  Cache MISS: ${data.usage?.prompt_tokens} input tokens (cache will be created for next call)`);
+    console.log(
+      `  Cache MISS: ${data.usage?.prompt_tokens} input tokens (cache will be created for next call)`,
+    );
   }
 
   return data.choices[0].message.content;
@@ -120,7 +124,7 @@ You are evaluating B2-level student writing, not publishable academic prose. App
 // --- Introduction ---
 
 function buildIntroductionSystemPrompt(): string {
-  return `You are an academic writing coach for ESL learners with B2 English level. Answer with simple sentences so students can understand your feedback easily. Your task is to evaluate an introductory paragraph (Hook, Background, Thesis, Transition) and provide constructive feedback.
+  return `You are an academic writing coach for ESL learners with B2 English level. Only flag genuine errors. Verify before correcting. Score realistically for English students with B2 level. Answer with simple sentences so students can understand your feedback easily. Your task is to evaluate an introductory paragraph (Hook, Background, Thesis, Transition) and provide constructive feedback.
 - The Thesis must have a clear stance and **exactly two** distinct supporting reasons (Argument A and Argument B). Also, is the thesis debatable? (A thesis should not be obvious, for instance "We should respect human rights" or "Kids should study" are very obvious thesis statement)
 - The Hook should be engaging and relevant.
 - The Background must provide neutral context.
@@ -183,7 +187,7 @@ Respond with ONLY a JSON object: { "isCoherent": boolean, "reason": "one-sentenc
 // --- Body ---
 
 function buildBodySystemPrompt(): string {
-  return `You are an academic writing tutor for ESL learner with B2 English level. Answer with simple sentences so students can understand your feedback easily.
+  return `You are an academic writing tutor for ESL learner with B2 English level. Only flag genuine errors. Verify before correcting. Score realistically for English students with B2 level.Answer with simple sentences so students can understand your feedback easily.
 Your job: evaluate a Claim–Evidence–Warrant–Conclusion paragraph, score it with a 5-criterion rubric (0–5 each), and return FIXABLE, actionable suggestions.
 - The student will provide their thesis statement for context. Use it to check if the Claim aligns with one of the thesis arguments. Do NOT rewrite the thesis — it is read-only context.
 - Be concise, concrete, and kind.
@@ -243,7 +247,7 @@ Respond with ONLY a JSON object: { "isCoherent": boolean, "reason": "one-sentenc
 // --- Counter-Argument ---
 
 function buildCounterArgumentSystemPrompt(): string {
-  return `You are an academic writing tutor specializing in argumentative essays for ESL learners with B2 English level. Answer with simple sentences so students can understand your feedback easily.
+  return `You are an academic writing tutor specializing in argumentative essays for ESL learners with B2 English level. Only flag genuine errors. Verify before correcting. Score realistically for English students with B2 level.Answer with simple sentences so students can understand your feedback easily.
 Your job: evaluate a Counter-Argument paragraph (Counter-Argument -> Rebuttal -> Evidence -> Warrant -> Conclusion). Score it with a 5-criterion rubric (0–5 each), and return FIXABLE, actionable suggestions.
 - The student will provide their thesis statement for context. Use it to check if the Counter-Argument opposes the thesis and the Rebuttal defends it. Do NOT rewrite the thesis — it is read-only context.
 - Be concise, concrete, and kind.
@@ -310,7 +314,7 @@ Respond with ONLY a JSON object: { "isCoherent": boolean, "reason": "one-sentenc
 // --- Conclusion ---
 
 function buildConclusionSystemPrompt(): string {
-  return `You are an academic writing coach for ESL learners with B2 English level. Answer with simple sentences so students can understand your feedback easily. Your task is to evaluate a concluding paragraph (Restatement, Summary, Call to Action) and provide constructive feedback. 
+  return `You are an academic writing coach for ESL learners with B2 English level. Only flag genuine errors. Verify before correcting. Score realistically for English students with B2 level. Answer with simple sentences so students can understand your feedback easily. Your task is to evaluate a concluding paragraph (Restatement, Summary, Call to Action) and provide constructive feedback. 
 - The Restatement must rephrase the original thesis (stance + two arguments A & B) without introducing new ideas.
 - The Summary must synthesize arguments A & B, and briefly mention the counter-argument and its rebuttal, showing why the main arguments prevail.
 - The Call to Action or Reflection should be a logical, impactful closing.
@@ -386,7 +390,7 @@ app.post("/api/coherence", async (req, res) => {
 
   try {
     const systemPrompt =
-      "You are a logic and reasoning expert helping ESL learners with B2 English level. Your task is to determine if a paragraph is logically coherent. Write your reason in simple, clear language so B2-level students can understand it. Respond only with the requested JSON object.";
+      "You are a logic and reasoning expert helping ESL learners with B2 English level. Your task is to determine if a paragraph is logically coherent. Write your reason in simple, clear language so B2-level students can understand it. Only flag genuine errors. Verify before correcting. Score realistically for English students with B2 level. Respond only with the requested JSON object.";
     const text = await chatCompletion(systemPrompt, prompt, 0.1);
     res.json(JSON.parse(text));
   } catch (error) {
