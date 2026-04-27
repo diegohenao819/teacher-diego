@@ -12,7 +12,7 @@ import {
   EMPTY_SETTINGS,
   WORD_LIMITS,
 } from "./constants";
-import { checkCoherence, getFeedback } from "./services/geminiService";
+import { checkCoherence, getFeedback } from "./services/openaiService";
 import {
   BodyParagraphInput,
   CoherenceStatus,

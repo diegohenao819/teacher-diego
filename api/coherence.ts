@@ -6,38 +6,7 @@ import type {
   IntroductionParagraphInput,
   ParagraphData,
 } from '../types';
-
-const API_KEY = process.env.DASHSCOPE_API_KEY;
-const DASHSCOPE_BASE = 'https://dashscope-intl.aliyuncs.com/compatible-mode/v1';
-const MODEL = 'qwen-plus';
-
-async function chatCompletion(systemPrompt: string, userPrompt: string, temperature: number): Promise<string> {
-  const res = await fetch(`${DASHSCOPE_BASE}/chat/completions`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${API_KEY}`,
-    },
-    body: JSON.stringify({
-      model: MODEL,
-      messages: [
-        { role: 'system', content: [{ type: 'text', text: systemPrompt, cache_control: { type: 'ephemeral' } }] },
-        { role: 'user', content: userPrompt },
-      ],
-      response_format: { type: 'json_object' },
-      temperature,
-    }),
-  });
-
-  if (!res.ok) {
-    const body = await res.text();
-    console.error(`DashScope error ${res.status}:`, body);
-    throw new Error(`DashScope API returned ${res.status}`);
-  }
-
-  const data = await res.json();
-  return data.choices[0].message.content;
-}
+import { chatCompletion, getOpenAIConfigError } from '../lib/openai';
 
 function isIntroductionParagraph(data: ParagraphData): data is IntroductionParagraphInput { return 'thesis' in data; }
 function isBodyParagraph(data: ParagraphData): data is BodyParagraphInput { return 'claim' in data; }
@@ -109,8 +78,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  if (!API_KEY) {
-    return res.status(500).json({ error: 'DASHSCOPE_API_KEY not configured' });
+  const configError = getOpenAIConfigError();
+  if (configError) {
+    return res.status(500).json({ error: configError });
   }
 
   const data: ParagraphData = req.body;

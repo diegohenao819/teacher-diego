@@ -27,7 +27,7 @@ export const checkCoherence = async (data: ParagraphData): Promise<CoherenceResp
 
 export const getFeedback = async (data: ParagraphData & Settings): Promise<FeedbackResponse> => {
     if (USE_MOCK) {
-        console.log("Using mock Gemini service. Request data:", data);
+        console.log("Using mock OpenAI service. Request data:", data);
         await new Promise(resolve => setTimeout(resolve, 1500));
         return MOCK_FEEDBACK_RESPONSE;
     }

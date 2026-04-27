@@ -8,74 +8,22 @@ import type {
   ParagraphData,
   Settings,
 } from "../types";
+import {
+  chatCompletion,
+  getOpenAIConfigError,
+  OPENAI_MODEL,
+} from "../lib/openai";
 
 const app = express();
 app.use(cors());
 app.use(express.json());
 
-// --- Qwen / DashScope config ---
+// --- OpenAI config ---
 
-const API_KEY = process.env.DASHSCOPE_API_KEY;
-if (!API_KEY) {
-  console.error("DASHSCOPE_API_KEY environment variable is required");
+const configError = getOpenAIConfigError();
+if (configError) {
+  console.error(configError);
   process.exit(1);
-}
-
-const DASHSCOPE_BASE = "https://dashscope-intl.aliyuncs.com/compatible-mode/v1";
-const MODEL = "qwen-plus"; // Qwen Plus — adjust if your plan uses a different model name
-
-async function chatCompletion(
-  systemPrompt: string,
-  userPrompt: string,
-  temperature: number,
-): Promise<string> {
-  const res = await fetch(`${DASHSCOPE_BASE}/chat/completions`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${API_KEY}`,
-    },
-    body: JSON.stringify({
-      model: MODEL,
-      messages: [
-        {
-          role: "system",
-          content: [
-            {
-              type: "text",
-              text: systemPrompt,
-              cache_control: { type: "ephemeral" },
-            },
-          ],
-        },
-        { role: "user", content: userPrompt },
-      ],
-      response_format: { type: "json_object" },
-      temperature,
-    }),
-  });
-
-  if (!res.ok) {
-    const body = await res.text();
-    console.error(`DashScope error ${res.status}:`, body);
-    throw new Error(`DashScope API returned ${res.status}`);
-  }
-
-  const data = await res.json();
-
-  // Log cache stats
-  const details = data.usage?.prompt_tokens_details;
-  if (details?.cached_tokens) {
-    console.log(
-      `  Cache HIT: ${details.cached_tokens} cached / ${data.usage.prompt_tokens} total input tokens`,
-    );
-  } else {
-    console.log(
-      `  Cache MISS: ${data.usage?.prompt_tokens} input tokens (cache will be created for next call)`,
-    );
-  }
-
-  return data.choices[0].message.content;
 }
 
 // --- Type guards ---
@@ -436,8 +384,21 @@ app.post("/api/feedback", async (req, res) => {
   }
 });
 
-const PORT = process.env.PORT || 3001;
-app.listen(PORT, () => {
+const PORT = Number(process.env.API_PORT || process.env.PORT || 3002);
+const server = app.listen(PORT, () => {
   console.log(`Proxy server running on http://localhost:${PORT}`);
-  console.log(`Using model: ${MODEL} via DashScope`);
+  console.log(`Using model: ${OPENAI_MODEL} via OpenAI Responses API`);
+});
+
+server.on("error", (error) => {
+  console.error("Proxy server failed to start:", error);
+  process.exit(1);
+});
+
+process.on("SIGINT", () => {
+  server.close(() => process.exit(0));
+});
+
+process.on("SIGTERM", () => {
+  server.close(() => process.exit(0));
 });
