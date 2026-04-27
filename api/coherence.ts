@@ -5,8 +5,8 @@ import type {
   CounterArgumentParagraphInput,
   IntroductionParagraphInput,
   ParagraphData,
-} from '../types';
-import { chatCompletion, getOpenAIConfigError } from '../lib/openai';
+} from '../types.js';
+import { chatCompletion, getOpenAIConfigError } from '../lib/openai.js';
 
 function isIntroductionParagraph(data: ParagraphData): data is IntroductionParagraphInput { return 'thesis' in data; }
 function isBodyParagraph(data: ParagraphData): data is BodyParagraphInput { return 'claim' in data; }

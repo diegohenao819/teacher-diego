@@ -7,12 +7,12 @@ import type {
   IntroductionParagraphInput,
   ParagraphData,
   Settings,
-} from "../types";
+} from "../types.js";
 import {
   chatCompletion,
   getOpenAIConfigError,
   OPENAI_MODEL,
-} from "../lib/openai";
+} from "../lib/openai.js";
 
 const app = express();
 app.use(cors());
