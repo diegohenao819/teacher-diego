@@ -63,7 +63,19 @@ export interface GrammarAnalysis {
   explanation: string;
 }
 
+export type OfficialLevel = 'Excellent' | 'Good' | 'Satisfactory' | 'Needs Improvement' | 'Poor' | 'Incomplete';
+
+// The level Diego's essay rubric gives this section, with its real points.
+export interface OfficialGrade {
+  level: OfficialLevel;
+  points: number;
+  maxPoints: number;
+  section: string;
+  justification: string;
+}
+
 export interface FeedbackResponse {
+  officialGrade?: OfficialGrade;
   rubric: RubricCriterion[];
   suggestions: string[];
   inlineEdits: Partial<ParagraphData>;

@@ -1,6 +1,6 @@
 import React from 'react';
 // FIX: Import `InputField` to correctly type the `fieldOrder` prop.
-import { FeedbackResponse, ParagraphData, InputField } from '../types';
+import { FeedbackResponse, ParagraphData, InputField, OfficialGrade, OfficialLevel } from '../types';
 import Card from './ui/Card';
 import Button from './ui/Button';
 import LoaderIcon from './icons/LoaderIcon';
@@ -23,6 +23,36 @@ const ScoreBadge: React.FC<{ score: number }> = ({ score }) => {
         </span>
     );
 };
+
+const LevelBadge: React.FC<{ level: OfficialLevel }> = ({ level }) => {
+    const getBadgeStyle = () => {
+        if (level === 'Excellent' || level === 'Good') return 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300';
+        if (level === 'Satisfactory') return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300';
+        return 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300';
+    };
+    return (
+        <span className={`px-2 py-1 text-sm font-medium rounded-full ${getBadgeStyle()}`}>
+            {level}
+        </span>
+    );
+};
+
+const formatPoints = (points: number) => (Number.isInteger(points) ? points.toFixed(1) : String(points));
+
+const OfficialGradeHeader: React.FC<{ grade: OfficialGrade }> = ({ grade }) => (
+    <div className="mb-4">
+        <div className="flex justify-between items-center">
+            <h3 className="text-xl font-bold">
+                {grade.section}: {formatPoints(grade.points)} / {formatPoints(grade.maxPoints)} pts
+            </h3>
+            <LevelBadge level={grade.level} />
+        </div>
+        <p className="text-sm text-slate-500 mt-1">Level on Diego's essay rubric</p>
+        {grade.justification && (
+            <p className="text-slate-600 dark:text-slate-400 mt-3">{grade.justification}</p>
+        )}
+    </div>
+);
 
 const RubricTable: React.FC<{ rubric: FeedbackResponse['rubric'] }> = ({ rubric }) => (
     <div className="overflow-x-auto">
@@ -100,10 +130,14 @@ const FeedbackContent: React.FC<{ feedback: FeedbackResponse, onApplyEdits: () =
         <div className="space-y-6 animate-fade-in">
             <Card>
                 <div className="p-6">
-                    <div className="flex justify-between items-center mb-4">
-                        <h3 className="text-xl font-bold">Overall Score: {scaledScore.toFixed(1)}/5.0</h3>
-                        <ScoreBadge score={scaledScore} />
-                    </div>
+                    {feedback.officialGrade ? (
+                        <OfficialGradeHeader grade={feedback.officialGrade} />
+                    ) : (
+                        <div className="flex justify-between items-center mb-4">
+                            <h3 className="text-xl font-bold">Overall Score: {scaledScore.toFixed(1)}/5.0</h3>
+                            <ScoreBadge score={scaledScore} />
+                        </div>
+                    )}
                     <RubricTable rubric={feedback.rubric} />
                 </div>
             </Card>

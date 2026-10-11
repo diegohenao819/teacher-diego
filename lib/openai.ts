@@ -3,12 +3,12 @@ import { createHash } from "node:crypto";
 
 const OPENAI_BASE_URL = "https://api.openai.com/v1";
 
-export const OPENAI_MODEL = process.env.OPENAI_MODEL || "gpt-5.2";
+export const OPENAI_MODEL = process.env.OPENAI_MODEL || "gpt-6-luna";
 const PROMPT_CACHE_RETENTION =
   process.env.OPENAI_PROMPT_CACHE_RETENTION === "in_memory"
     ? "in_memory"
     : "24h";
-const REASONING_EFFORT = process.env.OPENAI_REASONING_EFFORT || "low";
+const REASONING_EFFORT = process.env.OPENAI_REASONING_EFFORT || "medium";
 
 export function getOpenAIConfigError(): string | null {
   const apiKey = process.env.OPENAI_API_KEY;
@@ -47,7 +47,7 @@ function createPromptCacheKey(systemPrompt: string): string {
 }
 
 function supportsReasoningEffort(model: string): boolean {
-  return model.startsWith("gpt-5") || /^o\d/.test(model);
+  return /^gpt-[56]/.test(model) || /^o\d/.test(model);
 }
 
 function logPromptCacheUsage(data: any): void {
