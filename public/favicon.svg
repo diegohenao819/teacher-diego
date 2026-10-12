@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
+  <defs>
+    <clipPath id="sheet"><rect x="0.5" y="0.5" width="31" height="31" rx="5"/></clipPath>
+  </defs>
+  <!-- A corner of the squared notebook sheet -->
+  <rect x="0.5" y="0.5" width="31" height="31" rx="5" fill="#fdfdfe"/>
+  <g clip-path="url(#sheet)">
+    <path d="M0 8.5H32M0 16.5H32M0 24.5H32M8.5 0V32M16.5 0V32M24.5 0V32" stroke="#1f4e79" stroke-opacity=".1"/>
+    <path d="M5.5 0V32" stroke="#d64541" stroke-opacity=".6"/>
+  </g>
+  <rect x="0.5" y="0.5" width="31" height="31" rx="5" fill="none" stroke="#c4ccd7"/>
+  <!-- D for Diego, in ballpoint navy -->
+  <path fill="#1c2533" fill-rule="evenodd" d="M12 9h4.6a7 7 0 0 1 0 14H12z M15.3 12.3v7.4h1.1a3.7 3.7 0 0 0 0-7.4z"/>
+  <!-- Circled in the teacher's red pen -->
+  <path fill="none" stroke="#c0392b" stroke-width="2" stroke-linecap="round"
+    d="M22.46 7.41C16.74 5.34 9.04 8.09 8.82 16.34C8.6 23.56 16.3 25.97 21.36 24.59C26.86 23.22 28.84 18.41 28.18 13.25C27.52 8.44 22.9 6.38 17.62 7.06"/>
+</svg>
