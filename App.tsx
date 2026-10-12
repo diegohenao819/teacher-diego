@@ -1,8 +1,7 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
-// FIX: Import ValidationState to correctly type 'res' in isSyntaxValidForParagraphCheck
-import FeedbackPanel from "./components/FeedbackPanel";
-import Header from "./components/Header";
-import InputForm, { InputConfig } from "./components/InputForm";
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
+import Header, { type SectionStatus } from "./components/Header";
+import WritingSheet, { type WriteMode } from "./components/WritingSheet";
+import MarkingReport from "./components/MarkingReport";
 import {
   BANNED_PHRASES_REGEX,
   EMPTY_BODY_INPUT,
@@ -13,627 +12,387 @@ import {
   WORD_LIMITS,
 } from "./constants";
 import { checkCoherence, getFeedback } from "./services/openaiService";
+import { SECTION_ORDER, SECTIONS, countWords } from "./sections";
 import {
-  BodyParagraphInput,
   CoherenceStatus,
-  ConclusionParagraphInput,
-  CounterArgumentParagraphInput,
   FeedbackResponse,
   InputField,
-  IntroductionParagraphInput,
   PageType,
   ParagraphData,
   Settings,
-  ValidationResult,
   ValidationState,
 } from "./types";
 
-// --- Local Storage Keys ---
-const INTRODUCTION_STORAGE_KEY = "teacherDiego_introductionInputs";
-const BODY_STORAGE_KEY = "teacherDiego_bodyInputs";
-const BODY2_STORAGE_KEY = "teacherDiego_body2Inputs";
-const COUNTER_ARGUMENT_STORAGE_KEY = "teacherDiego_counterArgumentInputs";
-const CONCLUSION_STORAGE_KEY = "teacherDiego_conclusionInputs";
+// --- Local Storage Keys (kept so students' saved drafts survive the redesign) ---
+const STORAGE_KEYS: Record<PageType, string> = {
+  introduction: "teacherDiego_introductionInputs",
+  body: "teacherDiego_bodyInputs",
+  body2: "teacherDiego_body2Inputs",
+  counterArgument: "teacherDiego_counterArgumentInputs",
+  conclusion: "teacherDiego_conclusionInputs",
+};
+const ACTIVE_PAGE_KEY = "teacherDiego_activePage";
 
-type PageState<T extends ParagraphData> = {
-  inputs: T;
+const EMPTY_INPUTS: Record<PageType, ParagraphData> = {
+  introduction: EMPTY_INTRODUCTION_INPUT,
+  body: EMPTY_BODY_INPUT,
+  body2: EMPTY_BODY_INPUT,
+  counterArgument: EMPTY_COUNTER_ARGUMENT_INPUT,
+  conclusion: EMPTY_CONCLUSION_INPUT,
+};
+// A saved object must contain this field to belong to the page.
+const REQUIRED_FIELD: Record<PageType, string> = {
+  introduction: "thesis",
+  body: "claim",
+  body2: "claim",
+  counterArgument: "counterArgument",
+  conclusion: "restatement",
+};
+
+type PageState = {
+  inputs: ParagraphData;
   feedback: FeedbackResponse | null;
+  /** The inputs that were marked, to read the paragraph back and detect later changes. */
+  markedInputs: ParagraphData | null;
   coherence: CoherenceStatus;
 };
 
-// FIX: Changed fieldOrder type from `(keyof ParagraphData)[]` to `InputField[]`.
-// `keyof ParagraphData` resolves to an intersection of keys ('evidence' | 'warrant' | 'conclusion'),
-// which was incorrect. `InputField[]` correctly represents the union of all possible field names.
-const PAGE_CONFIGS: Record<
-  PageType,
-  { fields: InputConfig[]; fieldOrder: InputField[] }
-> = {
-  introduction: {
-    fields: [
-      {
-        field: "hook",
-        label: "1. Hook",
-        placeholder:
-          "An engaging opener (question, anecdote, statistic). e.g., 'What if the work week could be a day shorter without sacrificing pay?'",
-        rows: 3,
-      },
-      {
-        field: "background",
-        label: "2. Background",
-        placeholder:
-          "Briefly provide context. e.g., 'The traditional five-day work week has been the standard for over a century, but modern businesses are starting to question this model.'",
-        rows: 4,
-      },
-      {
-        field: "thesis",
-        label: "3. Thesis with Two Arguments",
-        placeholder:
-          "State your stance and two reasons (A & B). e.g., 'Implementing a four-day work week enhances company performance by boosting employee well-being and attracting top talent.'",
-        rows: 3,
-      },
-      {
-        field: "transition",
-        label: "4. Transition",
-        placeholder:
-          "Smoothly lead into the body. e.g., 'By examining the benefits for current employees and its appeal to new hires, the advantages of this model become clear.'",
-        rows: 2,
-      },
-    ],
-    fieldOrder: ["hook", "background", "thesis", "transition"],
-  },
-  body: {
-    fields: [
-      {
-        field: "claim",
-        label: "1. Claim",
-        placeholder:
-          "State your main argument. e.g., 'Remote work increases employee productivity.'",
-        rows: 3,
-      },
-      {
-        field: "evidence",
-        label: "2. Evidence",
-        placeholder:
-          "Provide a specific fact, example, or reason. e.g., 'A Stanford study found remote workers were 13% more productive.'",
-        rows: 5,
-      },
-      {
-        field: "warrant",
-        label: "3. Warrant",
-        placeholder:
-          "Explain how your evidence proves your claim. e.g., 'This productivity gain comes from fewer distractions and more focused work time at home.'",
-        rows: 5,
-      },
-      {
-        field: "conclusion",
-        label: "4. Conclusion",
-        placeholder:
-          "Summarize and restate your claim in a new way. e.g., 'Therefore, offering remote options is a key strategy for improving business output.'",
-        rows: 3,
-      },
-    ],
-    fieldOrder: ["claim", "evidence", "warrant", "conclusion"],
-  },
-  body2: {
-    fields: [
-      {
-        field: "claim",
-        label: "1. Claim",
-        placeholder:
-          "State your second main argument. e.g., 'A shorter work week also helps companies attract top talent.'",
-        rows: 3,
-      },
-      {
-        field: "evidence",
-        label: "2. Evidence",
-        placeholder:
-          "Provide a specific fact, example, or reason. e.g., 'A Gallup poll found that 54% of workers would switch jobs for one that offers a four-day week.'",
-        rows: 5,
-      },
-      {
-        field: "warrant",
-        label: "3. Warrant",
-        placeholder:
-          "Explain how your evidence proves your claim. e.g., 'This willingness to change jobs shows that flexible schedules are a powerful recruitment tool.'",
-        rows: 5,
-      },
-      {
-        field: "conclusion",
-        label: "4. Conclusion",
-        placeholder:
-          "Summarize and restate your claim in a new way. e.g., 'Thus, offering a four-day week gives companies a clear edge in the competition for skilled employees.'",
-        rows: 3,
-      },
-    ],
-    fieldOrder: ["claim", "evidence", "warrant", "conclusion"],
-  },
-  counterArgument: {
-    fields: [
-      {
-        field: "counterArgument",
-        label: "1. Counter-Argument",
-        placeholder:
-          "State a reasonable opposing view. e.g., 'Some argue that remote work harms team collaboration.'",
-        rows: 3,
-      },
-      {
-        field: "rebuttal",
-        label: "2. Rebuttal",
-        placeholder:
-          "Directly respond to the counter-argument. e.g., 'However, modern tools and structured communication can maintain strong collaboration.'",
-        rows: 5,
-      },
-      {
-        field: "evidence",
-        label: "3. Evidence",
-        placeholder:
-          "Provide evidence that supports your rebuttal. e.g., 'A 2022 survey showed 85% of remote teams use dedicated collaboration software daily.'",
-        rows: 5,
-      },
-      {
-        field: "warrant",
-        label: "4. Warrant",
-        placeholder:
-          "Explain how your evidence supports the rebuttal and weakens the counter-argument. e.g., 'This reliance on specific tools shows that collaboration has adapted, not disappeared.'",
-        rows: 5,
-      },
-      {
-        field: "conclusion",
-        label: "5. Conclusion",
-        placeholder:
-          "Synthesize why your rebuttal is stronger. e.g., 'Thus, while collaboration concerns are valid, they are solvable, making the benefits of remote work outweigh the drawbacks.'",
-        rows: 3,
-      },
-    ],
-    fieldOrder: [
-      "counterArgument",
-      "rebuttal",
-      "evidence",
-      "warrant",
-      "conclusion",
-    ],
-  },
-  conclusion: {
-    fields: [
-      {
-        field: "restatement",
-        label: "1. Restate Thesis",
-        placeholder:
-          "Rephrase your original thesis in a new way. e.g., 'Ultimately, a four-day work week is a strategic move that strengthens a company both internally and in the competitive job market.'",
-        rows: 3,
-      },
-      {
-        field: "summary",
-        label: "2. Summarize Arguments & Counter",
-        placeholder:
-          "Recap your points (A, B) and why they outweigh the counter-argument. e.g., 'The model improves staff well-being and recruitment power. While some fear collaboration may suffer, this is manageable and does not negate the core benefits.'",
-        rows: 5,
-      },
-      {
-        field: "callToAction",
-        label: "3. Call to Action / Reflection",
-        placeholder:
-          "A final, impactful thought or recommendation. e.g., 'Therefore, business leaders should seriously consider piloting a shorter week to build a more resilient and attractive workplace.'",
-        rows: 3,
-      },
-    ],
-    fieldOrder: ["restatement", "summary", "callToAction"],
-  },
-};
-
-const initialIntroductionState: PageState<IntroductionParagraphInput> = {
-  inputs: EMPTY_INTRODUCTION_INPUT,
+const emptyPage = (page: PageType): PageState => ({
+  inputs: EMPTY_INPUTS[page],
   feedback: null,
+  markedInputs: null,
   coherence: { status: "idle" },
-};
+});
 
-const initialBodyState: PageState<BodyParagraphInput> = {
-  inputs: EMPTY_BODY_INPUT,
-  feedback: null,
-  coherence: { status: "idle" },
-};
+function loadPage(page: PageType): PageState {
+  try {
+    const saved = localStorage.getItem(STORAGE_KEYS[page]);
+    if (saved) {
+      const parsed = JSON.parse(saved);
+      if (typeof parsed === "object" && parsed !== null && REQUIRED_FIELD[page] in parsed) {
+        return { ...emptyPage(page), inputs: { ...EMPTY_INPUTS[page], ...parsed } };
+      }
+    }
+  } catch (e) {
+    console.error(`Failed to read saved ${page} inputs`, e);
+    localStorage.removeItem(STORAGE_KEYS[page]);
+  }
+  return emptyPage(page);
+}
 
-const initialBody2State: PageState<BodyParagraphInput> = {
-  inputs: EMPTY_BODY_INPUT,
-  feedback: null,
-  coherence: { status: "idle" },
-};
+function loadActivePage(): PageType {
+  try {
+    const saved = localStorage.getItem(ACTIVE_PAGE_KEY) as PageType | null;
+    if (saved && saved in SECTIONS) return saved;
+  } catch {
+    /* storage unavailable */
+  }
+  return "introduction";
+}
 
-const initialCounterArgumentState: PageState<CounterArgumentParagraphInput> = {
-  inputs: EMPTY_COUNTER_ARGUMENT_INPUT,
-  feedback: null,
-  coherence: { status: "idle" },
-};
-
-const initialConclusionState: PageState<ConclusionParagraphInput> = {
-  inputs: EMPTY_CONCLUSION_INPUT,
-  feedback: null,
-  coherence: { status: "idle" },
-};
+const fieldsOf = (inputs: ParagraphData) => Object.keys(inputs) as InputField[];
+const textOf = (inputs: ParagraphData, field: InputField) => (inputs as Record<InputField, string>)[field] ?? "";
+const sameInputs = (a: ParagraphData, b: ParagraphData) =>
+  fieldsOf(a).every((f) => textOf(a, f).trim() === textOf(b, f).trim());
+const formatPoints = (n: number) => (Number.isInteger(n) ? n.toFixed(1) : String(n));
+const NUMBER_WORDS = ["", "One", "Two", "Three", "Four", "Five"];
 
 function App() {
-  const [activePage, setActivePage] = useState<PageType>("introduction");
-
-  const [introductionState, setIntroductionState] = useState(() => {
-    const saved = localStorage.getItem(INTRODUCTION_STORAGE_KEY);
-    if (saved) {
-      try {
-        const parsedInputs = JSON.parse(saved);
-        if (
-          typeof parsedInputs === "object" &&
-          parsedInputs !== null &&
-          "thesis" in parsedInputs
-        ) {
-          return {
-            ...initialIntroductionState,
-            inputs: { ...EMPTY_INTRODUCTION_INPUT, ...parsedInputs },
-          };
-        }
-      } catch (e) {
-        console.error(
-          "Failed to parse introduction inputs from localStorage",
-          e,
-        );
-        localStorage.removeItem(INTRODUCTION_STORAGE_KEY);
-      }
-    }
-    return initialIntroductionState;
-  });
-
-  const [bodyState, setBodyState] = useState(() => {
-    const saved = localStorage.getItem(BODY_STORAGE_KEY);
-    if (saved) {
-      try {
-        const parsedInputs = JSON.parse(saved);
-        if (
-          typeof parsedInputs === "object" &&
-          parsedInputs !== null &&
-          "claim" in parsedInputs
-        ) {
-          return {
-            ...initialBodyState,
-            inputs: { ...EMPTY_BODY_INPUT, ...parsedInputs },
-          };
-        }
-      } catch (e) {
-        console.error("Failed to parse body inputs from localStorage", e);
-        localStorage.removeItem(BODY_STORAGE_KEY);
-      }
-    }
-    return initialBodyState;
-  });
-
-  const [body2State, setBody2State] = useState(() => {
-    const saved = localStorage.getItem(BODY2_STORAGE_KEY);
-    if (saved) {
-      try {
-        const parsedInputs = JSON.parse(saved);
-        if (
-          typeof parsedInputs === "object" &&
-          parsedInputs !== null &&
-          "claim" in parsedInputs
-        ) {
-          return {
-            ...initialBody2State,
-            inputs: { ...EMPTY_BODY_INPUT, ...parsedInputs },
-          };
-        }
-      } catch (e) {
-        console.error("Failed to parse body 2 inputs from localStorage", e);
-        localStorage.removeItem(BODY2_STORAGE_KEY);
-      }
-    }
-    return initialBody2State;
-  });
-
-  const [counterArgumentState, setCounterArgumentState] = useState(() => {
-    const saved = localStorage.getItem(COUNTER_ARGUMENT_STORAGE_KEY);
-    if (saved) {
-      try {
-        const parsedInputs = JSON.parse(saved);
-        if (
-          typeof parsedInputs === "object" &&
-          parsedInputs !== null &&
-          "counterArgument" in parsedInputs
-        ) {
-          return {
-            ...initialCounterArgumentState,
-            inputs: { ...EMPTY_COUNTER_ARGUMENT_INPUT, ...parsedInputs },
-          };
-        }
-      } catch (e) {
-        console.error(
-          "Failed to parse counter argument inputs from localStorage",
-          e,
-        );
-        localStorage.removeItem(COUNTER_ARGUMENT_STORAGE_KEY);
-      }
-    }
-    return initialCounterArgumentState;
-  });
-
-  const [conclusionState, setConclusionState] = useState(() => {
-    const saved = localStorage.getItem(CONCLUSION_STORAGE_KEY);
-    if (saved) {
-      try {
-        const parsedInputs = JSON.parse(saved);
-        if (
-          typeof parsedInputs === "object" &&
-          parsedInputs !== null &&
-          "restatement" in parsedInputs
-        ) {
-          return {
-            ...initialConclusionState,
-            inputs: { ...EMPTY_CONCLUSION_INPUT, ...parsedInputs },
-          };
-        }
-      } catch (e) {
-        console.error("Failed to parse conclusion inputs from localStorage", e);
-        localStorage.removeItem(CONCLUSION_STORAGE_KEY);
-      }
-    }
-    return initialConclusionState;
-  });
-
+  const [activePage, setActivePage] = useState<PageType>(loadActivePage);
+  const [pages, setPages] = useState<Record<PageType, PageState>>(() => ({
+    introduction: loadPage("introduction"),
+    body: loadPage("body"),
+    body2: loadPage("body2"),
+    counterArgument: loadPage("counterArgument"),
+    conclusion: loadPage("conclusion"),
+  }));
+  const [mode, setMode] = useState<WriteMode>("parts");
   const [settings, setSettings] = useState<Settings>(EMPTY_SETTINGS);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const reportRef = useRef<HTMLDivElement>(null);
+  const scrollToReportNext = useRef(false);
+  const [reportVisible, setReportVisible] = useState(false);
 
-  const pageStates = useMemo(
-    () => ({
-      introduction: {
-        state: introductionState,
-        setter: setIntroductionState,
-        emptyState: initialIntroductionState,
-        storageKey: INTRODUCTION_STORAGE_KEY,
-      },
-      body: {
-        state: bodyState,
-        setter: setBodyState,
-        emptyState: initialBodyState,
-        storageKey: BODY_STORAGE_KEY,
-      },
-      body2: {
-        state: body2State,
-        setter: setBody2State,
-        emptyState: initialBody2State,
-        storageKey: BODY2_STORAGE_KEY,
-      },
-      counterArgument: {
-        state: counterArgumentState,
-        setter: setCounterArgumentState,
-        emptyState: initialCounterArgumentState,
-        storageKey: COUNTER_ARGUMENT_STORAGE_KEY,
-      },
-      conclusion: {
-        state: conclusionState,
-        setter: setConclusionState,
-        emptyState: initialConclusionState,
-        storageKey: CONCLUSION_STORAGE_KEY,
-      },
-    }),
-    [introductionState, bodyState, body2State, counterArgumentState, conclusionState],
-  );
+  const section = SECTIONS[activePage];
+  const activeState = pages[activePage];
 
-  const { state: activeState, setter: activeSetter } = pageStates[activePage];
+  const updatePage = useCallback((page: PageType, update: (prev: PageState) => PageState) => {
+    setPages((prev) => ({ ...prev, [page]: update(prev[page]) }));
+  }, []);
+
+  // Save each page's inputs as the student writes.
+  useEffect(() => {
+    for (const page of SECTION_ORDER) {
+      localStorage.setItem(STORAGE_KEYS[page], JSON.stringify(pages[page].inputs));
+    }
+  }, [pages]);
 
   useEffect(() => {
-    localStorage.setItem(
-      INTRODUCTION_STORAGE_KEY,
-      JSON.stringify(introductionState.inputs),
-    );
-  }, [introductionState.inputs]);
+    try {
+      localStorage.setItem(ACTIVE_PAGE_KEY, activePage);
+    } catch {
+      /* storage unavailable */
+    }
+  }, [activePage]);
 
-  useEffect(() => {
-    localStorage.setItem(BODY_STORAGE_KEY, JSON.stringify(bodyState.inputs));
-  }, [bodyState.inputs]);
+  const scrollToReport = useCallback(() => {
+    reportRef.current?.scrollIntoView({
+      behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth",
+      block: "start",
+    });
+  }, []);
 
+  // The phone bar steps aside while the marked sheet fills the lower part of the screen.
   useEffect(() => {
-    localStorage.setItem(BODY2_STORAGE_KEY, JSON.stringify(body2State.inputs));
-  }, [body2State.inputs]);
+    const check = () => {
+      const rect = reportRef.current?.getBoundingClientRect();
+      setReportVisible(!!rect && rect.height > 0 && rect.top < window.innerHeight * 0.65 && rect.bottom > 0);
+    };
+    check();
+    window.addEventListener("scroll", check, { passive: true });
+    window.addEventListener("resize", check);
+    return () => {
+      window.removeEventListener("scroll", check);
+      window.removeEventListener("resize", check);
+    };
+  }, [activeState.feedback, activePage]);
 
+  // After a new marking arrives, bring the circled level into view.
   useEffect(() => {
-    localStorage.setItem(
-      COUNTER_ARGUMENT_STORAGE_KEY,
-      JSON.stringify(counterArgumentState.inputs),
-    );
-  }, [counterArgumentState.inputs]);
-
-  useEffect(() => {
-    localStorage.setItem(
-      CONCLUSION_STORAGE_KEY,
-      JSON.stringify(conclusionState.inputs),
-    );
-  }, [conclusionState.inputs]);
+    if (scrollToReportNext.current && activeState.feedback) {
+      scrollToReportNext.current = false;
+      requestAnimationFrame(scrollToReport);
+    }
+  }, [activeState.feedback, scrollToReport]);
 
   const handleInputChange = useCallback(
     (field: InputField, value: string) => {
-      activeSetter((prev) => {
-        const newInputs = { ...prev.inputs, [field]: value };
-        return {
-          ...prev,
-          inputs: newInputs,
-          coherence:
-            prev.coherence.status !== "idle"
-              ? { status: "idle" }
-              : prev.coherence,
-        };
-      });
+      updatePage(activePage, (prev) => ({
+        ...prev,
+        inputs: { ...prev.inputs, [field]: value },
+        coherence: prev.coherence.status !== "idle" ? { status: "idle" } : prev.coherence,
+      }));
     },
-    [activeSetter],
+    [activePage, updatePage],
   );
 
-  const validationResult = useMemo(() => {
-    const inputs = activeState.inputs;
-    const fields = Object.keys(inputs) as (keyof typeof inputs)[];
+  const counts = useMemo(
+    () =>
+      Object.fromEntries(fieldsOf(activeState.inputs).map((f) => [f, countWords(textOf(activeState.inputs, f))])) as Partial<
+        Record<InputField, number>
+      >,
+    [activeState.inputs],
+  );
 
-    return fields.reduce(
-      (acc, field) => {
-        const text = inputs[field];
-        const wordCount = text.trim().split(/\s+/).filter(Boolean).length;
-        const limits = WORD_LIMITS[field as InputField];
+  const validation = useMemo(() => {
+    const result: Partial<Record<InputField, ValidationState>> = {};
+    for (const field of fieldsOf(activeState.inputs)) {
+      const text = textOf(activeState.inputs, field);
+      const wordCount = counts[field] ?? 0;
+      const limits = WORD_LIMITS[field];
+      if (text.trim().length === 0) {
+        result[field] = { isValid: false };
+      } else if (wordCount < limits.min || wordCount > limits.max) {
+        result[field] = { isValid: false, message: `Must be ${limits.min}-${limits.max} words.` };
+      } else if (BANNED_PHRASES_REGEX.test(text)) {
+        result[field] = { isValid: false, message: 'Avoid meta-phrases like "This essay will...".' };
+      } else if (activePage === "introduction" && field === "thesis" && /\b(multiple|several|many|various) reasons\b/i.test(text)) {
+        result[field] = { isValid: false, message: "Be specific; name your two reasons." };
+      } else {
+        result[field] = { isValid: true };
+      }
+    }
+    return result;
+  }, [activeState.inputs, activePage, counts]);
 
-        if (text.trim().length === 0) {
-          acc[field] = { isValid: false };
-        } else if (wordCount < limits.min || wordCount > limits.max) {
-          acc[field] = {
-            isValid: false,
-            message: `Must be ${limits.min}-${limits.max} words.`,
-          };
-        } else if (BANNED_PHRASES_REGEX.test(text)) {
-          acc[field] = {
-            isValid: false,
-            message: 'Avoid meta-phrases like "This essay will...".',
-          };
-        } else if (
-          activePage === "introduction" &&
-          field === "thesis" &&
-          /\b(multiple|several|many|various) reasons\b/i.test(text)
-        ) {
-          acc[field] = {
-            isValid: false,
-            message: "Be specific; name your two reasons.",
-          };
-        } else {
-          acc[field] = { isValid: true };
-        }
-        return acc;
-      },
-      {} as ValidationResult<typeof inputs>,
-    );
-  }, [activeState.inputs, activePage]);
-
-  const isSyntaxValidForParagraphCheck = useMemo(() => {
-    // FIX: Explicitly type `res` as `ValidationState` because `Object.values` on a union type
-    // can lead to `unknown` or `any`, causing a type error when accessing `res.isValid`.
-    return Object.values(validationResult).every(
-      (res: ValidationState) => res.isValid === true,
-    );
-  }, [validationResult]);
+  const isFormValid = useMemo(
+    () => (Object.values(validation) as (ValidationState | undefined)[]).every((v) => v?.isValid === true),
+    [validation],
+  );
 
   const handleCoherenceCheck = useCallback(async () => {
-    if (!isSyntaxValidForParagraphCheck) return;
-    activeSetter((prev) => ({ ...prev, coherence: { status: "checking" } }));
+    if (!isFormValid) return;
+    const page = activePage;
+    updatePage(page, (prev) => ({ ...prev, coherence: { status: "checking" } }));
     try {
-      const result = await checkCoherence(activeState.inputs);
-      if (result.isCoherent) {
-        activeSetter((prev) => ({
-          ...prev,
-          coherence: { status: "success", message: result.reason },
-        }));
-      } else {
-        activeSetter((prev) => ({
-          ...prev,
-          coherence: { status: "error", message: result.reason },
-        }));
-      }
-    } catch (e) {
-      activeSetter((prev) => ({
+      const result = await checkCoherence(pages[page].inputs);
+      updatePage(page, (prev) => ({
         ...prev,
-        coherence: {
-          status: "error",
-          message: "Could not perform coherence check.",
-        },
+        coherence: { status: result.isCoherent ? "success" : "error", message: result.reason },
+      }));
+    } catch {
+      updatePage(page, (prev) => ({
+        ...prev,
+        coherence: { status: "error", message: "Couldn't run the check. Check your connection and try again." },
       }));
     }
-  }, [activeState.inputs, isSyntaxValidForParagraphCheck, activeSetter]);
-
-  const isFormValid = useMemo(() => {
-    return isSyntaxValidForParagraphCheck;
-  }, [isSyntaxValidForParagraphCheck]);
+  }, [activePage, isFormValid, pages, updatePage]);
 
   const handleGetFeedback = async () => {
     if (!isFormValid) {
-      setError(
-        "Please fix the validation errors before submitting.",
-      );
+      setError("Write every part within its word range first.");
       return;
     }
+    const page = activePage;
+    const marked = pages[page].inputs;
     setIsLoading(true);
     setError(null);
-    activeSetter((prev) => ({ ...prev, feedback: null }));
     try {
-      const response = await getFeedback({
-        ...activeState.inputs,
-        ...settings,
-      });
-      activeSetter((prev) => ({ ...prev, feedback: response }));
+      const response = await getFeedback({ ...marked, ...settings });
+      scrollToReportNext.current = true;
+      updatePage(page, (prev) => ({ ...prev, feedback: response, markedInputs: marked }));
     } catch (e) {
-      setError("An error occurred while fetching feedback. Please try again.");
+      setError("Couldn't get your marking. Check your connection and try again.");
       console.error(e);
     } finally {
       setIsLoading(false);
     }
   };
 
-  const handleNew = () => {
-    const { setter, emptyState, storageKey } = pageStates[activePage];
-    setter(emptyState);
-    localStorage.removeItem(storageKey);
+  const handleClear = () => {
+    if (!window.confirm(`Delete the text in your ${section.noun}? Your other sections stay saved.`)) return;
+    updatePage(activePage, () => emptyPage(activePage));
+    localStorage.removeItem(STORAGE_KEYS[activePage]);
     setSettings(EMPTY_SETTINGS);
     setError(null);
-    setIsLoading(false);
   };
 
-  const handleApplyEdits = useCallback(() => {
-    if (activeState.feedback?.inlineEdits) {
-      activeSetter((prev) => ({
-        ...prev,
-        inputs: { ...prev.inputs, ...activeState.feedback?.inlineEdits },
-      }));
-    }
-  }, [activeState.feedback, activeSetter]);
+  const editsFor = (state: PageState) => {
+    const edits = (state.feedback?.inlineEdits ?? {}) as Record<string, string | undefined>;
+    return Object.fromEntries(
+      Object.entries(edits).filter(
+        ([field, value]) => field in state.inputs && value?.trim() && value.trim() !== textOf(state.inputs, field as InputField).trim(),
+      ),
+    ) as Partial<Record<InputField, string>>;
+  };
+  const pendingEdits = editsFor(activeState);
+
+  const handleApplyAllEdits = () => {
+    updatePage(activePage, (prev) => ({ ...prev, inputs: { ...prev.inputs, ...editsFor(prev) } }));
+  };
+
+  const handleApplyEdit = (field: InputField) => {
+    const edit = pendingEdits[field];
+    if (edit) handleInputChange(field, edit);
+  };
 
   const handlePageChange = useCallback((page: PageType) => {
     setError(null);
-    setIsLoading(false);
     setActivePage(page);
+    window.scrollTo({ top: 0 });
   }, []);
 
+  const statuses = useMemo(
+    () =>
+      Object.fromEntries(
+        SECTION_ORDER.map((page) => [
+          page,
+          {
+            started: fieldsOf(pages[page].inputs).some((f) => textOf(pages[page].inputs, f).trim()),
+            points: pages[page].feedback?.officialGrade?.points ?? null,
+          },
+        ]),
+      ) as Record<PageType, SectionStatus>,
+    [pages],
+  );
+
+  const grade = activeState.feedback?.officialGrade;
+  const stale = !!activeState.markedInputs && !sameInputs(activeState.markedInputs, activeState.inputs);
+
   return (
-    <div className="min-h-screen font-sans antialiased flex flex-col">
-      <Header
-        onNew={handleNew}
-        activePage={activePage}
-        onPageChange={handlePageChange}
-      />
-      <main className="flex-grow p-4 sm:p-6 lg:p-8">
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 max-w-7xl mx-auto">
-          <InputForm
-            key={activePage}
-            inputs={activeState.inputs}
-            onInputChange={handleInputChange}
-            onSubmit={handleGetFeedback}
-            onCoherenceCheck={handleCoherenceCheck}
-            isLoading={isLoading}
-            validationResult={validationResult}
-            isFormValid={isFormValid}
-            isSyntaxValid={isSyntaxValidForParagraphCheck}
-            coherence={activeState.coherence}
-            config={PAGE_CONFIGS[activePage].fields}
-            showThesisContext={
-              activePage === "body" ||
-              activePage === "body2" ||
-              activePage === "counterArgument"
-            }
-          />
-          <FeedbackPanel
-            inputs={activeState.inputs}
-            feedback={activeState.feedback}
-            isLoading={isLoading}
-            error={error}
-            onApplyEdits={handleApplyEdits}
-            fieldOrder={PAGE_CONFIGS[activePage].fieldOrder}
-          />
+    <div className="flex min-h-dvh flex-col">
+      <a
+        href="#main"
+        className="sr-only z-50 rounded-sm bg-[var(--ink)] px-3 py-1 text-[var(--paper)] focus:not-sr-only focus:absolute focus:left-2 focus:top-2"
+      >
+        Skip to your writing
+      </a>
+      <Header activePage={activePage} onPageChange={handlePageChange} statuses={statuses} />
+
+      <main id="main" className="mx-auto w-full max-w-6xl flex-1 space-y-8 px-4 pb-10 sm:px-6">
+        <header className="-mt-2 flex flex-wrap items-end justify-between gap-x-6 gap-y-3">
+          <div className="min-w-0 max-w-3xl">
+            <h1 className="text-3xl font-extrabold tracking-tight sm:text-4xl" key={activePage}>
+              Write your {section.noun}.{" "}
+              <span className="hl hl-swipe" data-role="reasoning" style={{ "--delay": "200ms" } as CSSProperties}>
+                Get it marked.
+              </span>
+            </h1>
+            <p className="mt-2 text-[15px] leading-relaxed text-[var(--ink-soft)]">
+              {NUMBER_WORDS[section.parts.length]} parts, one paragraph:{" "}
+              {section.parts.map((p, i) => (
+                <span key={p.field}>
+                  <span data-role={p.role} className="hl text-[var(--ink)]">
+                    {p.label.toLowerCase()}
+                  </span>
+                  {i < section.parts.length - 1 ? ", " : ". "}
+                </span>
+              ))}
+              Worth <span className="nums text-[var(--ink)]">{formatPoints(section.points)}</span> of 5 points on Diego's essay rubric.
+            </p>
+          </div>
+          {grade && (
+            <button
+              type="button"
+              onClick={scrollToReport}
+              className="group flex items-center gap-4 pr-3 text-sm text-[var(--ink-soft)] hover:text-[var(--ink)]"
+            >
+              <span className="text-right leading-tight">
+                Last marking
+                <span className="block text-xs text-[var(--ink-faint)] group-hover:underline">
+                  {grade.level} · see notes
+                </span>
+              </span>
+              <span className="nums text-[var(--pen)]">
+                <span className="text-2xl font-semibold">{formatPoints(grade.points)}</span>
+                <span className="text-xs">/{formatPoints(grade.maxPoints)}</span>
+              </span>
+            </button>
+          )}
+        </header>
+
+        <WritingSheet
+          section={section}
+          inputs={activeState.inputs}
+          counts={counts}
+          validation={validation}
+          onInputChange={handleInputChange}
+          mode={mode}
+          onModeChange={setMode}
+          canMark={isFormValid}
+          isMarking={isLoading}
+          markError={error}
+          onMark={handleGetFeedback}
+          coherence={activeState.coherence}
+          onCheckCoherence={handleCoherenceCheck}
+          onClear={handleClear}
+          feedback={activeState.feedback}
+          onApplyEdit={handleApplyEdit}
+          introThesis={textOf(pages.introduction.inputs, "thesis")}
+          marked={grade && !stale ? { points: grade.points, maxPoints: grade.maxPoints } : null}
+          onSeeMarking={scrollToReport}
+          hideBar={reportVisible && !!activeState.feedback}
+        />
+
+        <div ref={reportRef} className="scroll-mt-6">
+          {activeState.feedback && activeState.markedInputs && (
+            <MarkingReport
+              key={JSON.stringify(activeState.markedInputs)}
+              section={section}
+              feedback={activeState.feedback}
+              markedInputs={activeState.markedInputs}
+              stale={stale}
+              canApplyEdits={Object.keys(pendingEdits).length > 0}
+              onApplyAllEdits={handleApplyAllEdits}
+            />
+          )}
         </div>
       </main>
-      <footer className="text-center py-6 px-4 border-t border-slate-200 dark:border-slate-700">
-        <div className="text-sm text-slate-500 dark:text-slate-400 space-y-1">
-          <p>Built with ❤️ by Diego Henao. Professor & Software Developer</p>
-          <p>
-            Universidad Tecnológica de Pereira | Licenciatura en Bilingüismo
-          </p>
-        </div>
+
+      <footer className="mx-auto w-full max-w-6xl px-4 pt-2 pb-32 text-xs leading-relaxed text-[var(--ink-faint)] sm:px-6 lg:pb-10">
+        <p>Built by Diego Henao, professor and software developer.</p>
+        <p>Universidad Tecnológica de Pereira · Licenciatura en Bilingüismo</p>
       </footer>
     </div>
   );

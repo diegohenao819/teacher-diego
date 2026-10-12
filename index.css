@@ -1,15 +1,244 @@
 @import "tailwindcss";
 
-@theme {
-  --color-brand-primary: #4f46e5;
-  --color-brand-secondary: #7c3aed;
-  --color-brand-light: #e0e7ff;
-  --color-brand-dark: #312e81;
-  --animate-spin-slow: spin 3s linear infinite;
-  --animate-fade-in: fadeIn 0.5s ease-in-out;
+/* ------------------------------------------------------------------ */
+/* Notebook world, shared with Response Paragraph: squared paper,      */
+/* ballpoint navy ink, part-role highlighters and Diego's red pen.     */
+/* Light only: classroom daylight on white paper.                      */
+/* ------------------------------------------------------------------ */
+@layer base {
+  :root {
+    --desk: #e6ebf1;
+    --paper: #fdfdfe;
+    --grid-line: rgba(31, 78, 121, 0.085);
+    --grid: 28px;
+    --margin-rule: rgba(214, 69, 65, 0.55);
+    --ink: #1c2533;
+    --ink-soft: #4a5568;
+    --ink-faint: #6b7686;
+    --pen: #c0392b;
+    --pen-soft: rgba(192, 57, 43, 0.1);
+    --rule: rgba(28, 37, 51, 0.14);
+
+    /* One highlighter per part role (the job a part does in the essay). */
+    --hl-opening: rgba(250, 212, 40, 0.55);
+    --hl-position: rgba(110, 175, 240, 0.45);
+    --hl-support: rgba(120, 210, 110, 0.45);
+    --hl-reasoning: rgba(255, 166, 77, 0.5);
+    --hl-closing: rgba(190, 150, 240, 0.48);
+    --ink-opening: #6e5300;
+    --ink-position: #1f4e79;
+    --ink-support: #1e6b2e;
+    --ink-reasoning: #8c4108;
+    --ink-closing: #6b2fa0;
+
+    --shadow-sheet: 0 1px 2px rgba(28, 37, 51, 0.06), 0 12px 32px -12px rgba(28, 37, 51, 0.18);
+    --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+
+    --font-display: "Bricolage Grotesque", "Atkinson Hyperlegible Next", sans-serif;
+    --font-body: "Atkinson Hyperlegible Next", system-ui, sans-serif;
+    --font-mono: "Atkinson Hyperlegible Mono", ui-monospace, monospace;
+
+    color-scheme: light;
+  }
+
+  *,
+  ::before,
+  ::after {
+    border-color: var(--rule);
+  }
+  body {
+    background: var(--desk);
+    color: var(--ink);
+    font-family: var(--font-body);
+    -webkit-font-smoothing: antialiased;
+  }
+  ::selection {
+    background: var(--hl-reasoning);
+    color: var(--ink);
+  }
+  textarea {
+    caret-color: var(--pen);
+  }
+  :focus-visible {
+    outline: 2px solid var(--pen);
+    outline-offset: 2px;
+  }
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: var(--rule) transparent;
+  }
+  h1,
+  h2,
+  h3 {
+    font-family: var(--font-display);
+    text-wrap: balance;
+  }
 }
 
-@keyframes fadeIn {
-  0% { opacity: 0; }
-  100% { opacity: 1; }
+@layer components {
+  /* A sheet of squared paper, optionally with a red margin rule. */
+  .sheet {
+    position: relative;
+    background-color: var(--paper);
+    background-image: linear-gradient(var(--grid-line) 1px, transparent 1px),
+      linear-gradient(90deg, var(--grid-line) 1px, transparent 1px);
+    background-size: var(--grid) var(--grid);
+    background-position: -1px -1px;
+    border-radius: 4px;
+    box-shadow: var(--shadow-sheet);
+  }
+  .sheet-margin::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: var(--margin-x, 0);
+    width: 1px;
+    background: var(--margin-rule);
+    pointer-events: none;
+  }
+  /* Text that sits on the grid lines. */
+  .on-grid {
+    line-height: var(--grid);
+  }
+  .nums {
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
+  }
+  .display {
+    font-family: var(--font-display);
+  }
+
+  /* Highlighter swipe. The colour comes from the element's data-role. */
+  .hl {
+    background-image: linear-gradient(
+      100deg,
+      transparent 0,
+      var(--hl) 0.15em,
+      var(--hl) calc(100% - 0.1em),
+      transparent 100%
+    );
+    background-repeat: no-repeat;
+    background-size: 100% 78%;
+    background-position: 0 60%;
+    -webkit-box-decoration-break: clone;
+    box-decoration-break: clone;
+    border-radius: 0.2em 0.35em 0.25em 0.3em;
+    padding: 0 0.08em;
+  }
+  .hl-swipe {
+    animation: hl-swipe 0.75s var(--ease-out) both;
+    animation-delay: var(--delay, 0ms);
+  }
+  [data-role="opening"] {
+    --hl: var(--hl-opening);
+    --part-ink: var(--ink-opening);
+  }
+  [data-role="position"] {
+    --hl: var(--hl-position);
+    --part-ink: var(--ink-position);
+  }
+  [data-role="support"] {
+    --hl: var(--hl-support);
+    --part-ink: var(--ink-support);
+  }
+  [data-role="reasoning"] {
+    --hl: var(--hl-reasoning);
+    --part-ink: var(--ink-reasoning);
+  }
+  [data-role="closing"] {
+    --hl: var(--hl-closing);
+    --part-ink: var(--ink-closing);
+  }
+
+  /* Squared writing area that grows with its text. */
+  .writing {
+    background-color: var(--paper);
+    background-image: linear-gradient(var(--grid-line) 1px, transparent 1px),
+      linear-gradient(90deg, var(--grid-line) 1px, transparent 1px);
+    background-size: var(--grid) var(--grid);
+    background-attachment: local;
+    background-position: -1px -1px;
+  }
+
+  /* Hand-drawn strokes (pen circles, ticks, underlines). */
+  .pen-draw {
+    stroke-dasharray: 1;
+    stroke-dashoffset: 1;
+    animation: pen-draw 0.6s cubic-bezier(0.65, 0, 0.35, 1) forwards;
+    animation-delay: var(--delay, 0ms);
+  }
+  .ink-in {
+    animation: ink-in 0.55s var(--ease-out) both;
+    animation-delay: var(--delay, 0ms);
+  }
+  .note-in {
+    animation: note-in 0.6s var(--ease-out) both;
+    animation-delay: var(--delay, 0ms);
+  }
+  .scribble {
+    stroke-dasharray: 0.35 0.65;
+    animation: scribble 1.1s linear infinite;
+  }
+}
+
+@keyframes hl-swipe {
+  from {
+    background-size: 0% 78%;
+  }
+  to {
+    background-size: 100% 78%;
+  }
+}
+@keyframes pen-draw {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+@keyframes ink-in {
+  from {
+    opacity: 0;
+    filter: blur(3px);
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    filter: blur(0);
+    transform: none;
+  }
+}
+@keyframes note-in {
+  from {
+    opacity: 0;
+    filter: blur(4px);
+    transform: translateX(-10px);
+  }
+  to {
+    opacity: 1;
+    filter: blur(0);
+    transform: none;
+  }
+}
+@keyframes scribble {
+  to {
+    stroke-dashoffset: -1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hl-swipe,
+  .ink-in,
+  .note-in,
+  .scribble {
+    animation: none;
+  }
+  .pen-draw {
+    animation: none;
+    stroke-dashoffset: 0;
+  }
+  *,
+  *::before,
+  *::after {
+    transition-duration: 0.01ms !important;
+  }
 }
