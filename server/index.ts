@@ -12,6 +12,7 @@ import {
   COHERENCE_SYSTEM_PROMPT,
   normalizeFeedback,
 } from "../lib/prompts.js";
+import { parseSplitRequest, splitWriting } from "../lib/split.js";
 
 const app = express();
 app.use(cors());
@@ -63,6 +64,21 @@ app.post("/api/feedback", async (req, res) => {
   } catch (error) {
     console.error("Feedback error:", error);
     res.status(500).json({ error: "Failed to get feedback from AI" });
+  }
+});
+
+app.post("/api/split", async (req, res) => {
+  const request = parseSplitRequest(req.body);
+  if ("error" in request) {
+    res.status(400).json({ error: request.error });
+    return;
+  }
+
+  try {
+    res.json(await splitWriting(request.target, request.text));
+  } catch (error) {
+    console.error("Split error:", error);
+    res.status(500).json({ error: "Failed to split the text" });
   }
 });
 

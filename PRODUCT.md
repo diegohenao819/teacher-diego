@@ -34,7 +34,8 @@ Feedback calibrated to one real teacher. The AI follows Diego Henao's grading ca
   - Counter-argument: Counter-Argument, Rebuttal, Evidence, Warrant, Conclusion.
   - Conclusion: Restatement, Summary, Call to Action / Reflection.
   - Body and counter-argument pages also ask for the student's thesis as read-only context.
-- Validation before feedback: word limits per field and banned meta-phrases ("This essay will...").
+- Before feedback, every part must be written and banned meta-phrases ("This essay will...") are flagged. Word limits per part are only a guide and never block marking (Diego's decision, 2026-10-12).
+- Students can write part by part, paste a whole paragraph (split into its parts automatically, without changing a word), or paste the whole essay on the "Full essay" page (split into the five sections and their parts, then marked all at once). The split only chooses where each part starts; the text is cut from the student's own sentences.
 - Feedback contents: official level and points on Diego's rubric (Introduction 0.7, Body 1.0, Counter-argument 1.0, Conclusion 0.5), a 0–5 criteria table with rationales, a genuine-errors grammar table, suggestions with "Apply All Edits", and a revised paragraph that can be copied.
 - Stack: React 19, Vite, Tailwind CSS 4, an Express dev server, Vercel serverless functions, OpenAI (gpt-6-luna).
 

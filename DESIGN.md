@@ -248,15 +248,18 @@ Decisive, ink-on-paper, never pill-shaped.
 - **Loading:** label replaced with a looping red scribble plus "Marking…" or "Checking…".
 
 ### Mode Switch
-A two-segment tablist (Part by part / Whole paragraph) at the top of the writing sheet: 1px rule border, 4px inset, a navy thumb that slides between segments (300ms, expo-out); active label in paper, inactive in ink-soft. Full width on phones.
+A three-segment tablist (Part by part / Whole paragraph / Paste a paragraph; "Parts / Whole / Paste" on phones) at the top of the writing sheet: 1px rule border, 4px inset, equal segments, a navy thumb that slides between them (300ms, expo-out); active label in paper, inactive in ink-soft. Full width on phones. Paste mode shows one squared writing area and an outlined "Split into parts" button; marking from it splits the paragraph first (verbatim, by sentence), fills the parts, and marks when nothing blocks it.
 
 ### Inputs / Fields
 - **Style:** the writing area is squared paper itself (grid background scrolling with the text), 1px rule border, 4px corners, 17px text on a 28px line, red caret.
 - **Focus:** border takes the role ink and a 3px halo in the role's highlighter; other parts fade to 45% opacity while one is focused, and the focused part's name re-swipes its highlighter.
-- **Error:** inline pen-red text below the field; no red borders. Word ranges show as "N of min–max words" beside the part name, the count in support green when in range and semibold pen red when out of range.
+- **Error:** inline pen-red text below the field; no red borders. Only an empty part, the missing thesis, or a meta-phrase blocks marking. Word ranges are a guide, never a blocker: "N words · aim for min–max" beside the part name, the count in support green when in range and semibold pen red when outside it.
 
 ### Navigation
-Display-face wordmark "Teacher Diego" (700, 18-20px) with an ink-faint "Argumentative essay" tag, then five section links at 14px in ink-soft (short labels on phones, horizontally scrollable). Each link carries its status: marked points in 11px pen mono, or an ink-faint dot when in progress. The active link is ink, semibold, with a hand-drawn red underline that draws on.
+Display-face wordmark "Teacher Diego" (700, 18-20px) with an ink-faint "Argumentative essay" tag (hidden below 420px), then five section links at 14px in ink-soft (short labels on phones), a rule-coloured divider and a "Full essay" link. On phones "Full essay" moves to the wordmark row so the five sections keep one row. Each section link carries its status: marked points in 11px pen mono from md up (a pen-red dot on phones), or an ink-faint dot when in progress. The active link is ink, semibold, with a hand-drawn red underline that draws on.
+
+### Essay Sheet
+The full-essay page uses the same sheet and margin column. The margin holds the mono word count, the paragraphs pasted, and the primary "Mark all five sections" ("Mark ready sections" when some are not ready). The content holds one squared writing area for the whole essay with an outlined "Split into sections" button, then "Your five sections": a hairline-divided list with a zero-padded mono number, the section title in the display face, a status line (Not started / Ready to mark in support green / N parts to fix in pen red / Marked), the circled points with the level word once marked, and an "Open" link with a pen-red underline. A closing line gives the content points so far out of 4.2 and notes that grammar and mechanics (0.8) is marked on the whole essay.
 
 ### Margin Note
 A note tied to its part by a thin red bracket (hooked top and bottom ends, 1.4px). It holds the part key in its role highlighter and ink, then 14px text: corrections as a 2px red strike-through followed by the fix in semibold red, a suggested edit, or a tick with "No edits suggested". Notes ink in from the left with a blur.
@@ -268,7 +271,7 @@ SVG strokes in pen red with round caps, drawn on with a dash animation (0.6s): t
 The marked sheet opens with the official rubric level for the whole paragraph: points in 48px semibold pen mono with "/max" smaller, inside the drawn circle, and the level word (e.g. "Excellent") in the display face, 20px bold pen red, beneath it in the margin column on desktop and beside it on phones. A one-paragraph justification inks in after it on the 28px grid.
 
 ### Word Tally
-Each part gets a slot sized to its maximum words, a rule-coloured 2px-corner trough filled with its role highlighter (500ms, expo-out), with a thin margin-rule tick at its minimum and a pen outline when over. A mono total sits above with a status: "Start writing" (ink-faint), "N parts to go" (pen), "Every part in range" (support green). The full tally in the margin adds a per-part key (dot, label, mono count/range); the compact phone tally is an 8px track.
+Each part gets a slot sized to its maximum words, a rule-coloured 2px-corner trough filled with its role highlighter (500ms, expo-out), with a thin margin-rule tick at its minimum and a pen outline when over. A mono total sits above with a status: "Start writing" (ink-faint), "N parts to write" (pen) while a part is empty, then "Every part in range" or "Ready · N off range" (support green); the phone tally says "Ready". In paste mode the tally is replaced by the count of words pasted. The full tally in the margin adds a per-part key (dot, label, mono count/range); the compact phone tally is an 8px track.
 
 ### Sheet
 The container for everything: paper fill, 28px grid, 4px corners, the sheet shadow, and optionally the red margin rule. Sections inside a sheet split with a top hairline rather than a nested box.

@@ -1,14 +1,20 @@
 import React, { useState, type CSSProperties } from 'react';
 import { WORD_LIMITS } from '../constants';
 import type { CoherenceStatus, FeedbackResponse, InputField, ParagraphData, ValidationState } from '../types';
-import { THESIS_CONTEXT, type PartConfig, type SectionConfig } from '../sections';
+import { THESIS_CONTEXT, countWords, type PartConfig, type SectionConfig } from '../sections';
 import WritingArea from './desk/WritingArea';
 import WordTally from './desk/WordTally';
 import MarginNote from './desk/MarginNote';
 import Highlighted from './desk/Highlighted';
 import { Cross, Scribble, Tick } from './desk/PenMarks';
 
-export type WriteMode = 'parts' | 'whole';
+export type WriteMode = 'parts' | 'whole' | 'paste';
+
+const MODES: { id: WriteMode; label: string; short: string }[] = [
+  { id: 'parts', label: 'Part by part', short: 'Parts' },
+  { id: 'whole', label: 'Whole paragraph', short: 'Whole' },
+  { id: 'paste', label: 'Paste a paragraph', short: 'Paste' },
+];
 
 interface WritingSheetProps {
   section: SectionConfig;
@@ -33,6 +39,15 @@ interface WritingSheetProps {
   onSeeMarking: () => void;
   /** Hide the phone bar while the marked sheet is on screen. */
   hideBar: boolean;
+  /** Paste mode: the pasted paragraph, and splitting it into the parts. */
+  pasted: string;
+  onPastedChange: (text: string) => void;
+  onSplit: () => void;
+  onMarkPasted: () => void;
+  splitting: boolean;
+  splitError: string | null;
+  /** Shown above the parts right after a pasted paragraph was split into them. */
+  splitNotice: string | null;
 }
 
 const formatPoints = (n: number) => (Number.isInteger(n) ? n.toFixed(1) : String(n));
@@ -49,7 +64,7 @@ function PartMeta({ field, count }: { field: InputField; count: number }) {
   const figures = count === 0 ? 'text-[var(--ink-faint)]' : ok ? 'text-[var(--ink-support)]' : 'font-semibold text-[var(--pen)]';
   return (
     <span className="whitespace-nowrap text-xs text-[var(--ink-faint)]">
-      <span className={`nums ${figures}`}>{count}</span> of <span className="nums">{min}–{max}</span> words
+      <span className={`nums ${figures}`}>{count}</span> words · aim for <span className="nums">{min}–{max}</span>
     </span>
   );
 }
@@ -150,7 +165,18 @@ const WritingSheet: React.FC<WritingSheetProps> = ({
   marked,
   onSeeMarking,
   hideBar,
+  pasted,
+  onPastedChange,
+  onSplit,
+  onMarkPasted,
+  splitting,
+  splitError,
+  splitNotice,
 }) => {
+  const pasteMode = mode === 'paste';
+  const pastedWords = countWords(pasted);
+  const canMarkNow = pasteMode ? pastedWords >= 15 && !splitting : canMark;
+  const busy = isMarking || splitting;
   const [activeField, setActiveField] = useState<InputField | null>(null);
   const [openExamples, setOpenExamples] = useState<Partial<Record<InputField, boolean>>>({});
   const [thesisOpen, setThesisOpen] = useState(false);
@@ -163,13 +189,13 @@ const WritingSheet: React.FC<WritingSheetProps> = ({
   const markButton = (
     <button
       type="button"
-      onClick={onMark}
-      disabled={!canMark || isMarking}
+      onClick={pasteMode ? onMarkPasted : onMark}
+      disabled={!canMarkNow || busy}
       className="inline-flex h-12 items-center justify-center gap-3 whitespace-nowrap rounded-sm bg-[var(--ink)] px-6 font-semibold text-[var(--paper)] shadow-[0_4px_14px_-6px_rgba(28,37,51,0.45)] transition-[transform,box-shadow,opacity,background-color] duration-200 hover:-translate-y-px hover:bg-[var(--pen)] hover:shadow-[0_10px_22px_-10px_rgba(192,57,43,0.6)] active:translate-y-0 disabled:cursor-not-allowed disabled:opacity-45 disabled:shadow-none disabled:hover:translate-y-0 disabled:hover:bg-[var(--ink)]"
     >
-      {isMarking ? (
+      {busy ? (
         <>
-          <Scribble className="text-[var(--pen)]" /> Marking…
+          <Scribble className="text-[var(--pen)]" /> {splitting ? 'Splitting…' : 'Marking…'}
         </>
       ) : (
         'Mark my paragraph'
@@ -177,21 +203,39 @@ const WritingSheet: React.FC<WritingSheetProps> = ({
     </button>
   );
 
-  const partsInRange = section.parts.every((p) => {
+  const allWritten = section.parts.every((p) => (counts[p.field] ?? 0) > 0);
+  const offRange = section.parts.filter((p) => {
     const { min, max } = WORD_LIMITS[p.field];
     const n = counts[p.field] ?? 0;
-    return n >= min && n <= max;
-  });
+    return n > 0 && (n < min || n > max);
+  }).length;
   const thesisReady = !section.needsThesis || validation.thesisContext?.isValid === true;
-  const markHelp = isMarking
+  const markHelp = splitting
+    ? 'Finding the parts of your paragraph…'
+    : isMarking
     ? "Diego's rubric is reading your paragraph. This takes about 15 seconds."
+    : pasteMode
+      ? pastedWords >= 15
+        ? 'Your paragraph is split into its parts, then marked.'
+        : 'Paste your paragraph to get it marked.'
     : canMark
-      ? "You get the level on Diego's rubric, notes on each part, and a cleaner version."
-      : !partsInRange
-        ? 'Write every part within its word range to get your paragraph marked.'
+      ? offRange > 0
+        ? `${offRange} ${offRange === 1 ? 'part is' : 'parts are'} outside the suggested word range. That is only a guide: you can still mark it.`
+        : "You get the level on Diego's rubric, notes on each part, and a cleaner version."
+      : !allWritten
+        ? 'Write every part to get your paragraph marked.'
         : !thesisReady
-          ? 'Add your thesis at the top (15–80 words) to get your paragraph marked.'
+          ? 'Add your thesis at the top to get your paragraph marked.'
           : 'Fix the notes in red under your parts to get your paragraph marked.';
+
+  const pastedCount = (compact: boolean) => (
+    <div className="flex items-baseline justify-between gap-2" aria-live="polite">
+      <span className="whitespace-nowrap leading-none">
+        <span className={`nums font-semibold text-[var(--ink)] ${compact ? 'text-lg' : 'text-2xl'}`}>{pastedWords}</span>
+        <span className="text-sm text-[var(--ink-faint)]"> words pasted</span>
+      </span>
+    </div>
+  );
 
   const coherenceBlock = (
     <div className="space-y-3">
@@ -233,7 +277,7 @@ const WritingSheet: React.FC<WritingSheetProps> = ({
           {/* Margin: word tally, marking and coherence */}
           <aside className="hidden px-5 py-7 lg:block">
             <div className="sticky top-6 space-y-6">
-              <WordTally parts={section.parts} counts={counts} />
+              {pasteMode ? pastedCount(false) : <WordTally parts={section.parts} counts={counts} />}
               <div className="space-y-3">
                 <div className="[&>button]:w-full [&>button]:px-2 [&>button]:text-[15px]">{markButton}</div>
                 <p className="text-xs leading-relaxed text-[var(--ink-soft)]">{markHelp}</p>
@@ -252,33 +296,35 @@ const WritingSheet: React.FC<WritingSheetProps> = ({
             <div className="flex flex-wrap items-center justify-between gap-4">
               <div
                 role="tablist"
-                aria-label="How do you want to see your paragraph?"
-                className="relative grid w-full grid-cols-2 rounded-sm border border-[var(--rule)] bg-[var(--paper)] p-1 text-sm font-semibold sm:w-auto"
+                aria-label="How do you want to write your paragraph?"
+                className="relative grid w-full grid-cols-3 rounded-sm border border-[var(--rule)] bg-[var(--paper)] p-1 text-sm font-semibold sm:w-auto"
               >
                 <span
                   aria-hidden
-                  className="absolute inset-y-1 left-1 w-[calc(50%-4px)] rounded-[2px] bg-[var(--ink)] transition-transform duration-300 ease-[cubic-bezier(0.16,1,0.3,1)]"
-                  style={{ transform: mode === 'whole' ? 'translateX(100%)' : 'none' }}
+                  className="absolute inset-y-1 left-1 w-[calc((100%-8px)/3)] rounded-[2px] bg-[var(--ink)] transition-transform duration-300 ease-[cubic-bezier(0.16,1,0.3,1)]"
+                  style={{ transform: `translateX(${MODES.findIndex((m) => m.id === mode) * 100}%)` }}
                 />
-                {(['parts', 'whole'] as WriteMode[]).map((m) => (
+                {MODES.map((m) => (
                   <button
-                    key={m}
+                    key={m.id}
                     role="tab"
                     type="button"
-                    aria-selected={mode === m}
-                    onClick={() => onModeChange(m)}
-                    className={`relative z-10 px-4 py-1.5 transition-colors duration-300 ${
-                      mode === m ? 'text-[var(--paper)]' : 'text-[var(--ink-soft)] hover:text-[var(--ink)]'
+                    aria-selected={mode === m.id}
+                    aria-label={m.label}
+                    onClick={() => onModeChange(m.id)}
+                    className={`relative z-10 whitespace-nowrap px-3 py-1.5 transition-colors duration-300 sm:px-4 ${
+                      mode === m.id ? 'text-[var(--paper)]' : 'text-[var(--ink-soft)] hover:text-[var(--ink)]'
                     }`}
                   >
-                    {m === 'parts' ? 'Part by part' : 'Whole paragraph'}
+                    <span className="sm:hidden">{m.short}</span>
+                    <span className="hidden sm:inline">{m.label}</span>
                   </button>
                 ))}
               </div>
               <button
                 type="button"
                 onClick={onClear}
-                disabled={!hasText && !thesis.trim()}
+                disabled={!hasText && !thesis.trim() && !pasted.trim()}
                 className="ml-auto hidden text-sm font-semibold text-[var(--ink-faint)] hover:text-[var(--pen)] disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:text-[var(--ink-faint)] sm:block"
               >
                 Clear text
@@ -343,7 +389,67 @@ const WritingSheet: React.FC<WritingSheetProps> = ({
               </div>
             )}
 
-            {mode === 'parts' ? (
+            {mode === 'parts' && splitNotice && (
+              <p className="note-in mt-6 flex gap-2 text-sm leading-relaxed text-[var(--ink)]" role="status">
+                <Tick className="mt-0.5 shrink-0" />
+                <span>{splitNotice}</span>
+              </p>
+            )}
+
+            {mode === 'paste' ? (
+              <div className="ink-in mt-8 grid gap-x-8 gap-y-6 xl:grid-cols-[1fr_300px]" key="paste">
+                <div className="min-w-0">
+                  <label htmlFor="pasted" className="display text-xl font-bold tracking-tight">
+                    Paste your {section.noun}
+                  </label>
+                  <p id="pasted-hint" className="mt-1.5 text-sm leading-relaxed text-[var(--ink-soft)]">
+                    One paragraph. It is split into its {section.parts.length} parts, each in its own box, without changing your words.
+                  </p>
+                  <WritingArea
+                    id="pasted"
+                    className="mt-3"
+                    minRows={8}
+                    value={pasted}
+                    aria-describedby="pasted-hint"
+                    onChange={(e) => onPastedChange(e.target.value)}
+                  />
+                  <div className="mt-3 flex flex-wrap items-center gap-x-5 gap-y-2">
+                    <button
+                      type="button"
+                      onClick={onSplit}
+                      disabled={pastedWords === 0 || busy}
+                      className="inline-flex h-9 items-center gap-2 rounded-sm border border-[var(--ink)] px-3.5 text-sm font-semibold text-[var(--ink)] transition-colors hover:bg-[var(--ink)] hover:text-[var(--paper)] disabled:cursor-not-allowed disabled:border-[var(--rule)] disabled:text-[var(--ink-faint)] disabled:hover:bg-transparent"
+                    >
+                      {splitting ? (
+                        <>
+                          <Scribble className="text-[var(--pen)]" /> Splitting…
+                        </>
+                      ) : (
+                        'Split into parts'
+                      )}
+                    </button>
+                    <span className="text-xs text-[var(--ink-faint)]">
+                      <span className="nums">{pastedWords}</span> words
+                    </span>
+                  </div>
+                  {splitError && (
+                    <p className="mt-2 text-sm text-[var(--pen)]" role="alert">
+                      {splitError}
+                    </p>
+                  )}
+                </div>
+                <ol className="space-y-3 xl:pt-9" aria-label="Parts it is split into">
+                  {section.parts.map((p) => (
+                    <li key={p.field} data-role={p.role} className="text-sm">
+                      <span className="font-semibold">
+                        <span className="hl">{p.label}</span>
+                      </span>
+                      <span className="mt-0.5 block leading-relaxed text-[var(--ink-soft)]">{p.hint}</span>
+                    </li>
+                  ))}
+                </ol>
+              </div>
+            ) : mode === 'parts' ? (
               <ol className="mt-8 space-y-10" key="parts">
                 {section.parts.map((part, i) => {
                   const text = textOf(inputs, part.field);
@@ -451,7 +557,7 @@ const WritingSheet: React.FC<WritingSheetProps> = ({
               <button
                 type="button"
                 onClick={onClear}
-                disabled={!hasText && !thesis.trim()}
+                disabled={!hasText && !thesis.trim() && !pasted.trim()}
                 className="mt-2 shrink-0 text-sm font-semibold text-[var(--ink-faint)] hover:text-[var(--pen)] disabled:cursor-not-allowed disabled:opacity-50 sm:hidden"
               >
                 Clear text
@@ -468,16 +574,16 @@ const WritingSheet: React.FC<WritingSheetProps> = ({
           hideBar ? 'translate-y-full' : ''
         }`}
       >
-        {(markError || isMarking || (!canMark && partsInRange)) && (
+        {(markError || busy || (!pasteMode && !canMark && allWritten)) && (
           <p className={`mb-2 text-xs font-semibold ${markError ? 'text-[var(--pen)]' : 'text-[var(--ink-soft)]'}`} role={markError ? 'alert' : 'status'}>
             {markError ?? markHelp}
           </p>
         )}
         <div className="mx-auto flex max-w-xl items-center gap-4">
           <div className="min-w-0 flex-1">
-            <WordTally parts={section.parts} counts={counts} compact />
+            {pasteMode ? pastedCount(true) : <WordTally parts={section.parts} counts={counts} compact />}
           </div>
-          {marked && !isMarking ? (
+          {marked && !busy && !pasteMode ? (
             <button
               type="button"
               onClick={onSeeMarking}

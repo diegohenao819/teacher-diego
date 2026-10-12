@@ -1,4 +1,4 @@
-import { InputField, PageType } from './types';
+import type { InputField, PageType } from './types';
 
 // The job a part does in the essay. Each role has one highlighter, so the same
 // colour always means the same job (the thesis and its restatement are both blue).

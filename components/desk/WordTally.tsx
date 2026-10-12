@@ -24,19 +24,23 @@ export default function WordTally({
   counts: Counts;
   compact?: boolean;
 }) {
+  // Word limits are a guide: only an empty part keeps the paragraph from being marked.
   const total = parts.reduce((sum, p) => sum + (counts[p.field] ?? 0), 0);
-  const pending = parts.filter((p) => partState(counts[p.field] ?? 0, p.field) !== 'ok').length;
+  const empty = parts.filter((p) => (counts[p.field] ?? 0) === 0).length;
+  const offRange = parts.filter((p) => ['short', 'over'].includes(partState(counts[p.field] ?? 0, p.field))).length;
   const status =
     total === 0
       ? 'Start writing'
-      : pending === 0
+      : empty > 0
         ? compact
-          ? 'Ready'
-          : 'Every part in range'
-        : compact
-          ? `${pending} to go`
-          : `${pending} ${pending === 1 ? 'part' : 'parts'} to go`;
-  const statusColor = total === 0 ? 'text-[var(--ink-faint)]' : pending === 0 ? 'text-[var(--ink-support)]' : 'text-[var(--pen)]';
+          ? `${empty} to write`
+          : `${empty} ${empty === 1 ? 'part' : 'parts'} to write`
+        : compact || offRange === 0
+          ? offRange === 0 && !compact
+            ? 'Every part in range'
+            : 'Ready'
+          : `Ready · ${offRange} off range`;
+  const statusColor = total === 0 ? 'text-[var(--ink-faint)]' : empty > 0 ? 'text-[var(--pen)]' : 'text-[var(--ink-support)]';
 
   return (
     <div className="w-full" role="group" aria-label={`${total} words. ${status}.`}>

@@ -1,4 +1,4 @@
-import { ParagraphData, Settings, FeedbackResponse, CoherenceResponse } from '../types';
+import { ParagraphData, Settings, FeedbackResponse, CoherenceResponse, InputField, PageType } from '../types';
 import { MOCK_FEEDBACK_RESPONSE } from '../constants';
 
 const USE_MOCK = false;
@@ -48,4 +48,22 @@ export const getFeedback = async (data: ParagraphData & Settings): Promise<Feedb
     }
 
     return parsed;
+};
+
+export type SplitSections = Partial<Record<PageType, Partial<Record<InputField, string>>>>;
+
+// Splits a pasted paragraph (one section) or a whole essay into the app's parts, verbatim.
+export const splitText = async (
+    request: { scope: 'paragraph'; section: PageType; text: string } | { scope: 'essay'; text: string },
+): Promise<SplitSections> => {
+    const response = await fetch(`${API_BASE}/split`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(request),
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok || !data.sections) {
+        throw new Error(data.error || "Couldn't split your text. Check your connection and try again.");
+    }
+    return data.sections;
 };
